@@ -366,6 +366,18 @@ function displayScanResults(data) {
         document.getElementById("ocr-source-tag").innerText = `Source: ${data.ocr_source}`;
     }
 
+    // Update Engine Badge if Tesseract is active
+    if (data.tesseract_available) {
+        const badge = document.getElementById("engine-badge");
+        const badgeText = document.getElementById("engine-badge-text");
+        if (badge) {
+            badge.className = "engine-badge badge-ocr-active";
+        }
+        if (badgeText) {
+            badgeText.innerText = "OCR: Local Tesseract OCR";
+        }
+    }
+
     // 1. Overall Status Banner
     const status = data.compliance.overall_status;
     const banner = document.getElementById("status-banner");

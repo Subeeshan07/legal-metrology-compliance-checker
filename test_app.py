@@ -109,5 +109,15 @@ class TestLegalMetrologyChecker(unittest.TestCase):
         self.assertGreaterEqual(len(data["rules"]), 5)
         print(f"PASS: /api/rules returned {len(data['rules'])} statutory rules.")
 
+    def test_tesseract_ocr_path_and_execution(self):
+        """Verify Tesseract OCR is detected at C:\\Program Files\\Tesseract-OCR\\tesseract.exe and executes."""
+        from app import check_tesseract_available, perform_ocr_on_image
+        self.assertTrue(check_tesseract_available(), "Tesseract OCR should be detected and available")
+        text, src = perform_ocr_on_image("static/samples/sample_compliant_atta.png")
+        self.assertIn("Local Tesseract OCR", src)
+        self.assertTrue(len(text) > 0, "OCR extracted text should not be empty")
+        self.assertTrue("ATTA" in text.upper() or "HIMALAYAN" in text.upper() or "NET" in text.upper())
+        print(f"PASS: Tesseract OCR verified at C:\\Program Files\\Tesseract-OCR\\tesseract.exe with {len(text)} characters extracted.")
+
 if __name__ == "__main__":
     unittest.main()

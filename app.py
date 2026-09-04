@@ -40,40 +40,68 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "bmp", "tiff"}
 # ---------------------------------------------------------------------------
 # Tesseract OCR Detection & Initialization
 # ---------------------------------------------------------------------------
+TESSERACT_EXE_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
 TESSERACT_AVAILABLE = False
 try:
     import pytesseract
-    
-    # Locate Tesseract binary if not in default PATH
-    tesseract_candidates = [
+    # Explicitly configure pytesseract to use the standard Windows installation path
+    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+except ImportError:
+    pytesseract = None
+    logger.warning("pytesseract package not installed. OCR will run in simulation/fallback mode.")
+
+
+def check_tesseract_available():
+    """
+    Checks if Tesseract OCR executable is available and operational.
+    Explicitly configures pytesseract.pytesseract.tesseract_cmd to:
+    C:\\Program Files\\Tesseract-OCR\\tesseract.exe before any check or OCR operation.
+    """
+    global TESSERACT_AVAILABLE
+    if pytesseract is None:
+        TESSERACT_AVAILABLE = False
+        return False
+
+    # Explicitly configure before any check or OCR operation
+    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+    # Check primary specified executable location
+    if os.path.isfile(pytesseract.pytesseract.tesseract_cmd):
+        TESSERACT_AVAILABLE = True
+        return True
+
+    # Fallback to search candidates if installed elsewhere
+    candidates = [
         shutil.which("tesseract"),
-        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
         r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
         os.path.expanduser(r"~\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"),
         "/usr/bin/tesseract",
         "/usr/local/bin/tesseract"
     ]
-    
-    for candidate in tesseract_candidates:
+    for candidate in candidates:
         if candidate and os.path.isfile(candidate):
             pytesseract.pytesseract.tesseract_cmd = candidate
             TESSERACT_AVAILABLE = True
-            logger.info(f"Tesseract OCR executable located at: {candidate}")
-            break
-            
-    if not TESSERACT_AVAILABLE:
-        # Check if pytesseract works with default system path
-        try:
-            pytesseract.get_tesseract_version()
-            TESSERACT_AVAILABLE = True
-            logger.info("Tesseract OCR is accessible via system PATH.")
-        except Exception:
-            logger.warning("Tesseract binary not found. Graceful fallback mode will be active.")
-            TESSERACT_AVAILABLE = False
+            return True
 
-except ImportError:
-    logger.warning("pytesseract package not installed. OCR will run in simulation/fallback mode.")
-    TESSERACT_AVAILABLE = False
+    # Fallback verification via version command
+    try:
+        pytesseract.get_tesseract_version()
+        TESSERACT_AVAILABLE = True
+        return True
+    except Exception:
+        TESSERACT_AVAILABLE = False
+        return False
+
+
+# Verify at startup
+TESSERACT_AVAILABLE = check_tesseract_available()
+if TESSERACT_AVAILABLE:
+    logger.info(f"Tesseract OCR verified and active at: {pytesseract.pytesseract.tesseract_cmd}")
+else:
+    logger.warning("Tesseract binary not found. Graceful fallback mode will be active.")
+
 
 
 def allowed_file(filename):
@@ -561,9 +589,12 @@ def extract_entities_from_text(raw_text):
 def perform_ocr_on_image(image_path):
     """
     Performs OCR using pytesseract if available, else applies fallback simulation.
+    Ensures pytesseract.pytesseract.tesseract_cmd is explicitly configured before any OCR operation.
     """
-    if TESSERACT_AVAILABLE:
+    if check_tesseract_available():
         try:
+            # Explicitly configure tesseract_cmd before any OCR operation
+            pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
             processed_img = preprocess_image_for_ocr(image_path)
             # PSM 6: Assume a single uniform block of text
             custom_config = r"--oem 3 --psm 6"
@@ -571,7 +602,7 @@ def perform_ocr_on_image(image_path):
             if not text.strip():
                 # Try default PSM
                 text = pytesseract.image_to_string(processed_img)
-            return text.strip(), "Real Tesseract OCR"
+            return text.strip(), "Local Tesseract OCR (C:\\Program Files\\Tesseract-OCR\\tesseract.exe)"
         except Exception as e:
             logger.error(f"Tesseract OCR runtime error: {e}")
             return "", f"OCR Error: {str(e)}"
@@ -704,7 +735,8 @@ except Exception as e:
 
 @app.route("/")
 def index():
-    return render_template("index.html", tesseract_available=TESSERACT_AVAILABLE)
+    tesseract_status = check_tesseract_available()
+    return render_template("index.html", tesseract_available=tesseract_status)
 
 
 @app.route("/static/samples/<path:filename>")
@@ -900,7 +932,7 @@ def scan_product():
             file.save(file_path)
             image_url = f"/uploads/{safe_name}"
 
-            if TESSERACT_AVAILABLE:
+            if check_tesseract_available():
                 extracted_text, ocr_source = perform_ocr_on_image(file_path)
             else:
                 ocr_source = "Tesseract binary not installed on host machine"
@@ -929,7 +961,7 @@ def scan_product():
         "image_url": image_url,
         "ocr_text": extracted_text,
         "ocr_source": ocr_source,
-        "tesseract_available": TESSERACT_AVAILABLE,
+        "tesseract_available": check_tesseract_available(),
         "extracted_entities": entities,
         "compliance": compliance_result
     })

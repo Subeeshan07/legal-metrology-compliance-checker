@@ -31,9 +31,9 @@
             </div>
 
             <div class="header-actions">
-                <div class="engine-badge {% if tesseract_available %}badge-ocr-active{% else %}badge-ocr-fallback{% endif %}">
+                <div class="engine-badge {% if tesseract_available %}badge-ocr-active{% else %}badge-ocr-fallback{% endif %}" id="engine-badge">
                     <span class="pulse-dot"></span>
-                    <span>OCR: {% if tesseract_available %}Tesseract Active{% else %}Hybrid Assisted{% endif %}</span>
+                    <span id="engine-badge-text">OCR: {% if tesseract_available %}Local Tesseract OCR{% else %}Hybrid Assisted{% endif %}</span>
                 </div>
                 <button class="btn btn-primary" onclick="switchTab('scanner')">
                     <i class="fa-solid fa-camera"></i> Scan New Label
