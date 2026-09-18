@@ -18,74 +18,61 @@ import pandas as pd
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 
+from config.settings import Config
+
 # ---------------------------------------------------------------------------
 # Setup & Configuration
 # ---------------------------------------------------------------------------
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=getattr(logging, Config.LOG_LEVEL, logging.INFO),
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger(__name__)
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DATASET_PATH = os.path.join(BASE_DIR, "legal_metrology_dataset.csv")
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
-SAMPLES_FOLDER = os.path.join(BASE_DIR, "static", "samples")
+# Keep these module-level names during the refactor because the existing
+# application still references them in dataset, sample, and upload operations.
+DATASET_PATH = Config.DATASET_PATH
+UPLOAD_FOLDER = Config.UPLOAD_FOLDER
+SAMPLES_FOLDER = Config.SAMPLES_FOLDER
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(SAMPLES_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # Max 16MB image upload
+app.config.from_object(Config)
+
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "bmp", "tiff"}
 
 # ---------------------------------------------------------------------------
 # Tesseract OCR Detection & Initialization
 # ---------------------------------------------------------------------------
-TESSERACT_EXE_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
 TESSERACT_AVAILABLE = False
+
 try:
     import pytesseract
-    # Explicitly configure pytesseract to use the standard Windows installation path
-    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 except ImportError:
     pytesseract = None
-    logger.warning("pytesseract package not installed. OCR will run in simulation/fallback mode.")
+    logger.warning(
+        "pytesseract package not installed. "
+        "OCR will run in simulation/fallback mode."
+    )
 
 
 def check_tesseract_available():
     """
-    Checks if Tesseract OCR executable is available and operational.
-    Explicitly configures pytesseract.pytesseract.tesseract_cmd to:
-    C:\\Program Files\\Tesseract-OCR\\tesseract.exe before any check or OCR operation.
+    Check whether the configured Tesseract OCR executable is available
+    and operational.
     """
     global TESSERACT_AVAILABLE
+
     if pytesseract is None:
         TESSERACT_AVAILABLE = False
         return False
 
-    # Explicitly configure before any check or OCR operation
-    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    tesseract_cmd = Config.TESSERACT_CMD
+    if tesseract_cmd:
+        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
-    # Check primary specified executable location
-    if os.path.isfile(pytesseract.pytesseract.tesseract_cmd):
-        TESSERACT_AVAILABLE = True
-        return True
-
-    # Fallback to search candidates if installed elsewhere
-    candidates = [
-        shutil.which("tesseract"),
-        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
-        os.path.expanduser(r"~\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"),
-        "/usr/bin/tesseract",
-        "/usr/local/bin/tesseract"
-    ]
-    for candidate in candidates:
-        if candidate and os.path.isfile(candidate):
-            pytesseract.pytesseract.tesseract_cmd = candidate
-            TESSERACT_AVAILABLE = True
-            return True
-
-    # Fallback verification via version command
     try:
         pytesseract.get_tesseract_version()
         TESSERACT_AVAILABLE = True
@@ -98,10 +85,14 @@ def check_tesseract_available():
 # Verify at startup
 TESSERACT_AVAILABLE = check_tesseract_available()
 if TESSERACT_AVAILABLE:
-    logger.info(f"Tesseract OCR verified and active at: {pytesseract.pytesseract.tesseract_cmd}")
+    logger.info(
+        "Tesseract OCR verified and active at: "
+        f"{pytesseract.pytesseract.tesseract_cmd}"
+    )
 else:
-    logger.warning("Tesseract binary not found. Graceful fallback mode will be active.")
-
+    logger.warning(
+        "Tesseract binary not found. Graceful fallback mode will be active."
+    )
 
 
 def allowed_file(filename):
@@ -588,26 +579,33 @@ def extract_entities_from_text(raw_text):
 
 def perform_ocr_on_image(image_path):
     """
-    Performs OCR using pytesseract if available, else applies fallback simulation.
-    Ensures pytesseract.pytesseract.tesseract_cmd is explicitly configured before any OCR operation.
+    Perform OCR using the configured Tesseract executable.
+    Falls back gracefully when OCR is unavailable.
     """
     if check_tesseract_available():
         try:
-            # Explicitly configure tesseract_cmd before any OCR operation
-            pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
             processed_img = preprocess_image_for_ocr(image_path)
-            # PSM 6: Assume a single uniform block of text
+
+            # PSM 6: Assume a single uniform block of text.
             custom_config = r"--oem 3 --psm 6"
-            text = pytesseract.image_to_string(processed_img, config=custom_config)
+            text = pytesseract.image_to_string(
+                processed_img,
+                config=custom_config,
+            )
+
             if not text.strip():
-                # Try default PSM
+                # Retry with Tesseract's default page segmentation mode.
                 text = pytesseract.image_to_string(processed_img)
-            return text.strip(), "Local Tesseract OCR (C:\\Program Files\\Tesseract-OCR\\tesseract.exe)"
+
+            return (
+                text.strip(),
+                f"Local Tesseract OCR ({pytesseract.pytesseract.tesseract_cmd})",
+            )
         except Exception as e:
             logger.error(f"Tesseract OCR runtime error: {e}")
             return "", f"OCR Error: {str(e)}"
-    else:
-        return "", "Tesseract OCR binary not installed in host system PATH."
+
+    return "", "Tesseract OCR binary not installed or configured."
 
 
 # ---------------------------------------------------------------------------
@@ -1053,4 +1051,4 @@ def get_rules_reference():
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     logger.info("Starting Legal Metrology Packaged Commodity Compliance Checker on http://127.0.0.1:5000")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=Config.DEBUG)
