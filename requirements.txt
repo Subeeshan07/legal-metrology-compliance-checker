@@ -1,5 +1,10 @@
-Flask>=3.0.0
-pandas>=2.0.0
-Pillow>=10.0.0
-pytesseract>=0.3.10
-Werkzeug>=3.0.0
+# Web framework
+Flask>=3.0,<4.0
+Werkzeug>=3.0,<4.0
+
+# Data processing
+pandas>=2.0,<3.0
+
+# Image processing / OCR
+Pillow>=10.0,<13.0
+pytesseract>=0.3.10,<0.4
