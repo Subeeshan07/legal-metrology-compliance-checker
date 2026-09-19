@@ -10,15 +10,17 @@ Purpose: Analyze packaged food product labels and verify mandatory declarations
 import os
 import re
 import uuid
-import shutil
 import logging
 from datetime import datetime
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, send_from_directory
-from werkzeug.utils import secure_filename
-
 from config.settings import Config
+from utils.file_utils import (
+    ALLOWED_IMAGE_EXTENSIONS,
+    allowed_file,
+)
+from utils.image_utils import preprocess_image_for_ocr
 
 # ---------------------------------------------------------------------------
 # Setup & Configuration
@@ -41,7 +43,7 @@ os.makedirs(SAMPLES_FOLDER, exist_ok=True)
 app = Flask(__name__)
 app.config.from_object(Config)
 
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "bmp", "tiff"}
+ALLOWED_EXTENSIONS = ALLOWED_IMAGE_EXTENSIONS
 
 # ---------------------------------------------------------------------------
 # Tesseract OCR Detection & Initialization
@@ -94,9 +96,6 @@ else:
         "Tesseract binary not found. Graceful fallback mode will be active."
     )
 
-
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 # ---------------------------------------------------------------------------
@@ -417,38 +416,6 @@ class LegalMetrologyComplianceEngine:
 # ---------------------------------------------------------------------------
 # OCR & Entity Extraction Engine
 # ---------------------------------------------------------------------------
-def preprocess_image_for_ocr(image_path):
-    """
-    Preprocess image to boost OCR readability:
-    - Resize if too small
-    - Grayscale
-    - Contrast enhancement
-    - Median filter to eliminate noise
-    """
-    img = Image.open(image_path)
-    # Convert RGBA to RGB
-    if img.mode in ("RGBA", "P"):
-        img = img.convert("RGB")
-    
-    # Check width, scale up if small
-    w, h = img.size
-    if w < 1000:
-        factor = 1000.0 / w
-        img = img.resize((int(w * factor), int(h * factor)), Image.Resampling.LANCZOS)
-
-    # Grayscale
-    gray = img.convert("L")
-    
-    # Enhance contrast
-    enhancer = ImageEnhance.Contrast(gray)
-    enhanced = enhancer.enhance(1.8)
-    
-    # Sharpness
-    sharpener = ImageEnhance.Sharpness(enhanced)
-    processed = sharpener.enhance(1.5)
-    
-    return processed
-
 
 def extract_entities_from_text(raw_text):
     """
