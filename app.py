@@ -16,12 +16,14 @@ from PIL import Image
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from config.settings import Config
+from services.ocr_service import (
+    check_tesseract_available,
+    perform_ocr_on_image,
+)
 from utils.file_utils import (
     ALLOWED_IMAGE_EXTENSIONS,
     allowed_file,
 )
-from utils.image_utils import preprocess_image_for_ocr
-
 # ---------------------------------------------------------------------------
 # Setup & Configuration
 # ---------------------------------------------------------------------------
@@ -48,59 +50,7 @@ ALLOWED_EXTENSIONS = ALLOWED_IMAGE_EXTENSIONS
 # ---------------------------------------------------------------------------
 # Tesseract OCR Detection & Initialization
 # ---------------------------------------------------------------------------
-TESSERACT_AVAILABLE = False
 
-try:
-    import pytesseract
-except ImportError:
-    pytesseract = None
-    logger.warning(
-        "pytesseract package not installed. "
-        "OCR will run in simulation/fallback mode."
-    )
-
-
-def check_tesseract_available():
-    """
-    Check whether the configured Tesseract OCR executable is available
-    and operational.
-    """
-    global TESSERACT_AVAILABLE
-
-    if pytesseract is None:
-        TESSERACT_AVAILABLE = False
-        return False
-
-    tesseract_cmd = Config.TESSERACT_CMD
-    if tesseract_cmd:
-        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
-
-    try:
-        pytesseract.get_tesseract_version()
-        TESSERACT_AVAILABLE = True
-        return True
-    except Exception:
-        TESSERACT_AVAILABLE = False
-        return False
-
-
-# Verify at startup
-TESSERACT_AVAILABLE = check_tesseract_available()
-if TESSERACT_AVAILABLE:
-    logger.info(
-        "Tesseract OCR verified and active at: "
-        f"{pytesseract.pytesseract.tesseract_cmd}"
-    )
-else:
-    logger.warning(
-        "Tesseract binary not found. Graceful fallback mode will be active."
-    )
-
-
-
-# ---------------------------------------------------------------------------
-# Modular Compliance Engine: Legal Metrology (Packaged Commodities) Rules, 2011
-# ---------------------------------------------------------------------------
 class LegalMetrologyComplianceEngine:
     """
     Evaluates extracted product packaging declarations against the
@@ -543,36 +493,6 @@ def extract_entities_from_text(raw_text):
 
     return extracted
 
-
-def perform_ocr_on_image(image_path):
-    """
-    Perform OCR using the configured Tesseract executable.
-    Falls back gracefully when OCR is unavailable.
-    """
-    if check_tesseract_available():
-        try:
-            processed_img = preprocess_image_for_ocr(image_path)
-
-            # PSM 6: Assume a single uniform block of text.
-            custom_config = r"--oem 3 --psm 6"
-            text = pytesseract.image_to_string(
-                processed_img,
-                config=custom_config,
-            )
-
-            if not text.strip():
-                # Retry with Tesseract's default page segmentation mode.
-                text = pytesseract.image_to_string(processed_img)
-
-            return (
-                text.strip(),
-                f"Local Tesseract OCR ({pytesseract.pytesseract.tesseract_cmd})",
-            )
-        except Exception as e:
-            logger.error(f"Tesseract OCR runtime error: {e}")
-            return "", f"OCR Error: {str(e)}"
-
-    return "", "Tesseract OCR binary not installed or configured."
 
 
 # ---------------------------------------------------------------------------
