@@ -20,6 +20,7 @@ from services.ocr_service import (
     check_tesseract_available,
     perform_ocr_on_image,
 )
+from services.extraction_service import extract_entities_from_text
 from utils.file_utils import (
     ALLOWED_IMAGE_EXTENSIONS,
     allowed_file,
@@ -366,133 +367,6 @@ class LegalMetrologyComplianceEngine:
 # ---------------------------------------------------------------------------
 # OCR & Entity Extraction Engine
 # ---------------------------------------------------------------------------
-
-def extract_entities_from_text(raw_text):
-    """
-    Parses OCR text using targeted regular expressions and heuristic NLP
-    to extract the mandatory packaged commodity declarations.
-    """
-    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
-    cleaned_text = " \n ".join(lines)
-    
-    extracted = {
-        "product_name": "",
-        "manufacturer": "",
-        "net_quantity": "",
-        "mrp": "",
-        "mfg_date": "",
-        "consumer_care": "",
-        "country_of_origin": "",
-        "raw_text": raw_text
-    }
-
-    # 1. Net Quantity
-    # Matches: Net Qty: 500 g, Net Wt. 1 kg, 200 ml, 500 gms, Net Content: 250 g
-    net_qty_match = re.search(
-        r"(?:Net\s*(?:Quantity|Qty|Content|Wt|Weight)?[:\s\-]*)\s*(\d+(?:\.\d+)?\s*(?:kg|g|gm|gms|ml|l|ltr|litres?|units?|pieces?|pcs|n))\b",
-        cleaned_text,
-        re.IGNORECASE
-    )
-    if net_qty_match:
-        extracted["net_quantity"] = net_qty_match.group(1).strip()
-    else:
-        # Fallback standalone quantity search
-        fallback_qty = re.search(r"\b(\d+(?:\.\d+)?\s*(?:kg|gms?|ml|ltr|litres?))\b", cleaned_text, re.IGNORECASE)
-        if fallback_qty:
-            extracted["net_quantity"] = fallback_qty.group(1).strip()
-
-    # 2. Maximum Retail Price (MRP)
-    # Matches: MRP Rs. 150 (incl. of all taxes), MRP: ₹ 99.00
-    mrp_match = re.search(
-        r"(?:M\.?R\.?P\.?|Maximum\s*Retail\s*Price)[:\s\-]*([^\n\r]+)",
-        cleaned_text,
-        re.IGNORECASE
-    )
-    if mrp_match:
-        mrp_line = mrp_match.group(0).strip()
-        # Keep relevant substring
-        mrp_cleaned = re.sub(r"\s+", " ", mrp_line)
-        extracted["mrp"] = mrp_cleaned
-    else:
-        # Standalone Rs / INR search
-        standalone_mrp = re.search(r"(?:Rs\.?|INR|₹)\s*(\d+(?:\.\d{2})?)\s*(\([^\)]*\))?", cleaned_text, re.IGNORECASE)
-        if standalone_mrp:
-            extracted["mrp"] = f"MRP {standalone_mrp.group(0).strip()}"
-
-    # 3. Manufacturing / Packing Date
-    mfg_match = re.search(
-        r"(?:Mfg(?:\s*Date)?|Date\s*of\s*Mfg|Date\s*of\s*Packing|PKD|Packed|Manufactured|Batch\s*Date)[:\s\-]*([A-Za-z0-9\/\-\. ]{4,15})",
-        cleaned_text,
-        re.IGNORECASE
-    )
-    if mfg_match:
-        extracted["mfg_date"] = mfg_match.group(1).strip()
-    else:
-        # Search for month/year pattern: 05/2026 or May 2026
-        dt_fallback = re.search(r"\b(0[1-9]|1[0-2])[\/\-](202[0-9]|20[2-9][0-9])\b", cleaned_text)
-        if dt_fallback:
-            extracted["mfg_date"] = dt_fallback.group(0).strip()
-
-    # 4. Consumer Care Details
-    cc_match = re.search(
-        r"(?:Consumer\s*Care|Customer\s*Care|Helpline|Feedback|Consumer\s*Cell|Contact\s*Us)[:\s\-]*([^\n]+(?:\n[^\n]+)?)",
-        cleaned_text,
-        re.IGNORECASE
-    )
-    if cc_match:
-        extracted["consumer_care"] = re.sub(r"\s+", " ", cc_match.group(0).strip())
-    else:
-        # Look for email and phone numbers
-        email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", cleaned_text)
-        phone_match = re.search(r"(?:1800[- ]?\d{3}[- ]?\d{3,4}|\+?91[- ]?\d{10}|\b\d{10}\b)", cleaned_text)
-        cc_parts = []
-        if email_match:
-            cc_parts.append(f"Email: {email_match.group(0)}")
-        if phone_match:
-            cc_parts.append(f"Ph: {phone_match.group(0)}")
-        if cc_parts:
-            extracted["consumer_care"] = " | ".join(cc_parts)
-
-    # 5. Manufacturer / Packer / Marketer
-    mfr_match = re.search(
-        r"(?:Manufactured\s*by|Packed\s*by|Marketed\s*by|Mfg\s*by|Mfd\s*by|Produced\s*by)[:\s\-]*([^\n]+(?:\n[^\n]+)?)",
-        cleaned_text,
-        re.IGNORECASE
-    )
-    if mfr_match:
-        extracted["manufacturer"] = re.sub(r"\s+", " ", mfr_match.group(1).strip())
-    else:
-        # Check if line contains Pvt Ltd or Industries
-        for line in lines:
-            if any(k in line.lower() for k in ["ltd", "pvt", "industries", "foods", "agro", "llp", "mills"]):
-                extracted["manufacturer"] = line.strip()
-                break
-
-    # 6. Country of Origin
-    origin_match = re.search(
-        r"(?:Country\s*of\s*Origin|Made\s*in|Product\s*of)[:\s\-]*([A-Za-z\s]+)",
-        cleaned_text,
-        re.IGNORECASE
-    )
-    if origin_match:
-        extracted["country_of_origin"] = origin_match.group(1).strip()
-    elif "made in india" in cleaned_text.lower() or "origin: india" in cleaned_text.lower():
-        extracted["country_of_origin"] = "India"
-
-    # 7. Product Name
-    # Often the first prominent line or line preceding net quantity
-    for line in lines[:5]:
-        line_clean = line.strip()
-        # Skip generic labels
-        if len(line_clean) > 3 and not any(k in line_clean.lower() for k in ["mrp", "mfg", "net qty", "batch", "fssai", "ingredients"]):
-            extracted["product_name"] = line_clean
-            break
-
-    if not extracted["product_name"] and lines:
-        extracted["product_name"] = lines[0]
-
-    return extracted
-
 
 
 # ---------------------------------------------------------------------------
