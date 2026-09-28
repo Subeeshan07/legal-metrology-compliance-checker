@@ -1,0 +1,95 @@
+[
+  {
+    "id": "GOLDEN-01",
+    "description": "Standard genuine and fully compliant whole wheat flour",
+    "raw_text": "HIMALAYAN CHAKKI FRESH ATTA\n100% Pure Whole Wheat Flour\nNet Quantity: 5 kg\nMRP Rs. 245.00 (Incl. of all taxes)\nMfg Date: 05/2026\nBatch No: HCF-2026-B8\nManufactured by: Pristine Foods & Agro Ltd, Phase 2, Peenya Industrial Area, Bengaluru - 560058\nConsumer Care: care@pristine.com | Ph: 1800-220-4400\nCountry of Origin: India\nBarcode: 8901234567890",
+    "barcode": "8901234567890",
+    "expected_entities": {
+      "product_name": "HIMALAYAN CHAKKI FRESH ATTA",
+      "net_quantity": "5 kg",
+      "mrp": "Rs. 245.00 (Incl. of all taxes)",
+      "mfg_date": "05/2026",
+      "manufacturer": "Pristine Foods & Agro Ltd, Phase 2, Peenya Industrial Area, Bengaluru - 560058",
+      "consumer_care": "care@pristine.com | Ph: 1800-220-4400",
+      "country_of_origin": "India"
+    },
+    "expected_compliance_status": "COMPLIANT",
+    "expected_counterfeit_risk": "LOW"
+  },
+  {
+    "id": "GOLDEN-02",
+    "description": "Genuine snack brand with missing mandatory tax declaration and missing packer details",
+    "raw_text": "CRUNCHY POTATO MASALA CHIPS\nNet Qty: 80 g\nMRP Rs. 40.00\nMfg Date: 04/2026\nManufactured by: Surya Snacks LLP, Industrial Zone",
+    "barcode": null,
+    "expected_entities": {
+      "product_name": "CRUNCHY POTATO MASALA CHIPS",
+      "net_quantity": "80 g",
+      "mrp": "Rs. 40.00",
+      "mfg_date": "04/2026",
+      "country_of_origin": "Not Declared"
+    },
+    "expected_compliance_status": "NON-COMPLIANT",
+    "expected_counterfeit_risk": "LOW"
+  },
+  {
+    "id": "GOLDEN-03",
+    "description": "Counterfeit brand squatting with deceptive typo and unregistered barcode, yet formal declarations present",
+    "raw_text": "HIMALYAN CHAKKI FRESH ATTA\nNet Quantity: 5 kg\nMRP Rs. 140.00 (Incl. of all taxes)\nMfg Date: 05/2026\nManufactured by: Shady Mill Packers, Peenya Industrial Area\nConsumer Care: fake@unknown.com\nCountry of Origin: India\nBarcode: 8909999999999",
+    "barcode": "8909999999999",
+    "expected_entities": {
+      "net_quantity": "5 kg",
+      "country_of_origin": "India"
+    },
+    "expected_compliance_status": "COMPLIANT",
+    "expected_counterfeit_risk": "HIGH"
+  },
+  {
+    "id": "GOLDEN-04",
+    "description": "Spice packet with non-standard units (gms instead of g) and missing email",
+    "raw_text": "KASHMIRI DEGI RED CHILLI POWDER\nNet Quantity: 200 gms\nMRP Rs. 145.00 (Incl. of all taxes)\nPKD: 06/2026\nMfd by: Kaveri Spices & Naturals, Idukki\nConsumer Care Helpline: 1800-435-8475\nCountry of Origin: India",
+    "barcode": null,
+    "expected_entities": {
+      "net_quantity": "200 gms",
+      "country_of_origin": "India"
+    },
+    "expected_compliance_status": "NEEDS REVIEW",
+    "expected_counterfeit_risk": "LOW"
+  },
+  {
+    "id": "GOLDEN-05",
+    "description": "Premium tea with date embedded in phrase (Packed during 06/2026) and 250 g net weight",
+    "raw_text": "DARJEELING PREMIUM WHOLE LEAF TEA\nNet Quantity: 250 g\nMRP Rs. 380.00 (Incl. of all taxes)\nPacked during 06/2026\nManufactured by: Kaveri Spices & Naturals, 14/B, Spice Park, Puttady, Idukki, Kerala - 685551\nConsumer Care: care@kaveri.com | Ph: 1800-397-5570\nCountry of Origin: India\nBarcode: 8904567890123",
+    "barcode": "8904567890123",
+    "expected_entities": {
+      "net_quantity": "250 g",
+      "mfg_date": "06/2026",
+      "country_of_origin": "India"
+    },
+    "expected_compliance_status": "COMPLIANT",
+    "expected_counterfeit_risk": "LOW"
+  },
+  {
+    "id": "GOLDEN-06",
+    "description": "Missing country of origin declaration under Rule 6(1)(n)",
+    "raw_text": "CRISPY BUTTER COOKIES\nNet Weight: 150 g\nMRP Rs. 65.00 (Incl. of all taxes)\nMfg Date: 02/2026\nManufactured by: Pristine Foods & Agro Ltd, Phase 2, Peenya Industrial Area, Bengaluru - 560058\nConsumer Care: care@pristine.com | Ph: 1800-715-7187",
+    "barcode": null,
+    "expected_entities": {
+      "net_quantity": "150 g",
+      "country_of_origin": "Not Declared"
+    },
+    "expected_compliance_status": "NON-COMPLIANT",
+    "expected_counterfeit_risk": "LOW"
+  },
+  {
+    "id": "GOLDEN-07",
+    "description": "Brand squatting fake dairy butter with high counterfeit risk",
+    "raw_text": "AMOOL DELIGHT PURE BUTTER\nNet Quantity: 500 g\nMRP Rs. 120.00 (Incl. of all taxes)\nMfg Date: 07/2026\nManufactured by: Unknown Counterfeit Unit, Industrial Estate\nConsumer Care: care@unknownfake.com\nCountry of Origin: India\nBarcode: 8908888888888",
+    "barcode": "8908888888888",
+    "expected_entities": {
+      "net_quantity": "500 g",
+      "country_of_origin": "India"
+    },
+    "expected_compliance_status": "COMPLIANT",
+    "expected_counterfeit_risk": "HIGH"
+  }
+]
