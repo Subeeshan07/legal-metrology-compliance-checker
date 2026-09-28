@@ -533,31 +533,64 @@ class LegalMetrologyComplianceEngine:
     @classmethod
     def evaluate(cls, extracted):
         """
-        Runs all compliance rules and determines final verdict.
+        Runs all compliance rules and determines final verdict with
+        evidence-based and normalized results.
         """
+        from services.normalization_service import normalize_declarations
+
+        normalized = normalize_declarations(extracted)
+
+        p_name = extracted.get("product_name")
+        mfr = extracted.get("manufacturer")
+        qty = extracted.get("net_quantity")
+        mfg = extracted.get("mfg_date")
+        mrp = extracted.get("mrp")
+        cc = extracted.get("consumer_care")
+        origin = extracted.get("country_of_origin")
+
+        product_check = cls.check_rule_6_1_b_product_name(p_name)
+        product_check["detected_value"] = p_name
+        product_check["normalized_value"] = normalized.get("product_name")
+        product_check["evidence"] = p_name
+
+        mfr_check = cls.check_rule_6_1_a_manufacturer(mfr)
+        mfr_check["detected_value"] = mfr
+        mfr_check["normalized_value"] = normalized.get("manufacturer")
+        mfr_check["evidence"] = mfr
+
+        qty_check = cls.check_rule_6_1_c_net_quantity(qty)
+        qty_check["detected_value"] = qty
+        qty_check["normalized_value"] = normalized.get("quantity")
+        qty_check["evidence"] = qty
+
+        mfg_check = cls.check_rule_6_1_d_mfg_date(mfg)
+        mfg_check["detected_value"] = mfg
+        mfg_check["normalized_value"] = normalized.get("mfg_date")
+        mfg_check["evidence"] = mfg
+
+        mrp_check = cls.check_rule_6_1_da_mrp(mrp)
+        mrp_check["detected_value"] = mrp
+        mrp_check["normalized_value"] = normalized.get("mrp")
+        mrp_check["evidence"] = mrp
+
+        cc_check = cls.check_rule_6_1_e_consumer_care(cc)
+        cc_check["detected_value"] = cc
+        cc_check["normalized_value"] = normalized.get("consumer_care")
+        cc_check["evidence"] = cc
+
+        country_check = cls.check_rule_6_1_n_country_of_origin(origin)
+        country_check["detected_value"] = origin
+        country_check["normalized_value"] = normalized.get("country")
+        country_check["evidence"] = origin
 
         checks = [
-            cls.check_rule_6_1_b_product_name(
-                extracted.get("product_name")
-            ),
-            cls.check_rule_6_1_a_manufacturer(
-                extracted.get("manufacturer")
-            ),
-            cls.check_rule_6_1_c_net_quantity(
-                extracted.get("net_quantity")
-            ),
-            cls.check_rule_6_1_d_mfg_date(
-                extracted.get("mfg_date")
-            ),
-            cls.check_rule_6_1_da_mrp(
-                extracted.get("mrp")
-            ),
-            cls.check_rule_6_1_e_consumer_care(
-                extracted.get("consumer_care")
-            ),
-            cls.check_rule_6_1_n_country_of_origin(
-                extracted.get("country_of_origin")
-            ),
+            product_check,
+            mfr_check,
+            qty_check,
+            mfg_check,
+            mrp_check,
+            cc_check,
+            country_check,
         ]
 
         has_failure = any(
@@ -600,3 +633,12 @@ class LegalMetrologyComplianceEngine:
                 "%Y-%m-%d %H:%M:%S"
             ),
         }
+
+    @classmethod
+    def evaluate_structured(cls, extracted):
+        """
+        Evaluates extracted product and returns a structured ComplianceReport model.
+        """
+        from rules.rule_registry import default_registry
+        return default_registry.evaluate(extracted)
+
