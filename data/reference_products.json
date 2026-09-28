@@ -1,0 +1,122 @@
+[
+  {
+    "id": "REF-HIMALAYAN-ATTA-001",
+    "brand": "Himalayan",
+    "product_name": "Himalayan Chakki Fresh Atta",
+    "category": "Flour & Grains",
+    "authorized_manufacturers": [
+      "Pristine Foods & Agro Ltd",
+      "Himalayan Organic Ventures"
+    ],
+    "known_addresses": [
+      "Phase 2, Peenya Industrial Area, Bengaluru - 560058",
+      "SIDCUL Industrial Estate, Pantnagar, Uttarakhand - 263153"
+    ],
+    "variants": [
+      {
+        "net_quantity": "5 kg",
+        "mrp_range": [230.0, 260.0],
+        "barcode": "8901234567890"
+      },
+      {
+        "net_quantity": "10 kg",
+        "mrp_range": [440.0, 490.0],
+        "barcode": "8901234567891"
+      }
+    ],
+    "registered_consumer_care": {
+      "email": "care@pristine.com",
+      "phone": "1800-220-4400"
+    },
+    "country_of_origin": "India",
+    "known_counterfeit_typos": [
+      "Himalya",
+      "Himalian",
+      "Pristeen",
+      "Pristin"
+    ],
+    "security_features": [
+      "Micro-embossed border",
+      "Verified GS1 GTIN barcode",
+      "Tamper-evident holographic strip"
+    ]
+  },
+  {
+    "id": "REF-SURYA-CHIPS-002",
+    "brand": "Surya",
+    "product_name": "Crunchy Potato Masala Chips",
+    "category": "Snacks & Confectionery",
+    "authorized_manufacturers": [
+      "Surya Snacks LLP",
+      "Surya Packaged Commodities LLP"
+    ],
+    "known_addresses": [
+      "Industrial Growth Centre, Mandideep, Bhopal, MP - 462046",
+      "Industrial Zone, Pithampur, Indore, MP - 454775"
+    ],
+    "variants": [
+      {
+        "net_quantity": "80 g",
+        "mrp_range": [35.0, 45.0],
+        "barcode": "8902345678901"
+      },
+      {
+        "net_quantity": "150 g",
+        "mrp_range": [65.0, 75.0],
+        "barcode": "8902345678902"
+      }
+    ],
+    "registered_consumer_care": {
+      "email": "care@surya.com",
+      "phone": "1800-668-6863"
+    },
+    "country_of_origin": "India",
+    "known_counterfeit_typos": [
+      "Suryaa",
+      "Soorya",
+      "Cruncy"
+    ],
+    "security_features": [
+      "Gloss laminate packaging",
+      "Batch QR authentication"
+    ]
+  },
+  {
+    "id": "REF-KAVERI-SPICE-003",
+    "brand": "Kaveri",
+    "product_name": "Kashmiri Degi Red Chilli Powder",
+    "category": "Spices & Condiments",
+    "authorized_manufacturers": [
+      "Kaveri Spices & Naturals"
+    ],
+    "known_addresses": [
+      "14/B, Spice Park, Puttady, Idukki, Kerala - 685551"
+    ],
+    "variants": [
+      {
+        "net_quantity": "100 g",
+        "mrp_range": [90.0, 110.0],
+        "barcode": "8903456789012"
+      },
+      {
+        "net_quantity": "200 g",
+        "mrp_range": [140.0, 160.0],
+        "barcode": "8903456789013"
+      }
+    ],
+    "registered_consumer_care": {
+      "email": "care@kaveri.com",
+      "phone": "1800-435-8475"
+    },
+    "country_of_origin": "India",
+    "known_counterfeit_typos": [
+      "Kavery",
+      "Kaveeri",
+      "Kashmery"
+    ],
+    "security_features": [
+      "Food-grade metallic foil lining",
+      "AGMARK certified quality seal"
+    ]
+  }
+]
