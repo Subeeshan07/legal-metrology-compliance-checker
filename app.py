@@ -9,7 +9,6 @@ Purpose: Analyze packaged food product labels and verify mandatory declarations
 
 import os
 import logging
-from PIL import Image
 from flask import Flask
 from config.settings import Config
 from utils.file_utils import ALLOWED_IMAGE_EXTENSIONS
@@ -18,6 +17,7 @@ from repositories.product_repository import (
     save_record_to_dataset,
 )
 from services.ocr_service import check_tesseract_available
+from services.sample_service import ensure_sample_labels
 from routes import (
     web_bp,
     scan_bp,
@@ -26,9 +26,8 @@ from routes import (
     rules_bp,
 )
 
-
 # ---------------------------------------------------------------------------
-# Setup & Configuration
+# Setup & Logging
 # ---------------------------------------------------------------------------
 logging.basicConfig(
     level=getattr(logging, Config.LOG_LEVEL, logging.INFO),
@@ -36,53 +35,53 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Keep these module-level names during the refactor because the existing
-# application still references them in dataset, sample, and upload operations.
+
+# ---------------------------------------------------------------------------
+# Application Factory
+# ---------------------------------------------------------------------------
+def create_app(config_class=Config):
+    """
+    Application factory for the Legal Metrology Compliance Checker.
+    Configures settings, ensures storage folders and sample presets,
+    and registers all route blueprints.
+    """
+    flask_app = Flask(__name__)
+    if isinstance(config_class, dict):
+        flask_app.config.from_mapping(config_class)
+    else:
+        flask_app.config.from_object(config_class)
+
+    # Ensure required directories exist
+    upload_folder = flask_app.config.get("UPLOAD_FOLDER", Config.UPLOAD_FOLDER)
+    samples_folder = flask_app.config.get("SAMPLES_FOLDER", Config.SAMPLES_FOLDER)
+    os.makedirs(upload_folder, exist_ok=True)
+    os.makedirs(samples_folder, exist_ok=True)
+
+    # Initialize synthetic sample label images
+    try:
+        ensure_sample_labels(samples_folder)
+    except Exception as e:
+        logger.warning(f"Could not pre-render sample images: {e}")
+
+    # Register Blueprints
+    flask_app.register_blueprint(web_bp)
+    flask_app.register_blueprint(scan_bp)
+    flask_app.register_blueprint(product_bp)
+    flask_app.register_blueprint(analytics_bp)
+    flask_app.register_blueprint(rules_bp)
+
+    return flask_app
+
+
+# ---------------------------------------------------------------------------
+# Global Application Instance & Backward Compatibility Exports
+# ---------------------------------------------------------------------------
+app = create_app(Config)
+
 DATASET_PATH = Config.DATASET_PATH
 UPLOAD_FOLDER = Config.UPLOAD_FOLDER
 SAMPLES_FOLDER = Config.SAMPLES_FOLDER
-
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(SAMPLES_FOLDER, exist_ok=True)
-
-app = Flask(__name__)
-app.config.from_object(Config)
-
 ALLOWED_EXTENSIONS = ALLOWED_IMAGE_EXTENSIONS
-
-# ---------------------------------------------------------------------------
-# Tesseract OCR Detection & Initialization
-# ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-# OCR & Entity Extraction Engine
-# ---------------------------------------------------------------------------
-
-
-from services.sample_service import ensure_sample_labels
-
-
-# Call generator at startup
-try:
-    ensure_sample_labels()
-except Exception as e:
-    logger.warning(f"Could not pre-render sample images: {e}")
-
-
-from routes import (
-    web_bp,
-    scan_bp,
-    product_bp,
-    analytics_bp,
-    rules_bp,
-)
-
-app.register_blueprint(web_bp)
-app.register_blueprint(scan_bp)
-app.register_blueprint(product_bp)
-app.register_blueprint(analytics_bp)
-app.register_blueprint(rules_bp)
-
 
 
 # ---------------------------------------------------------------------------
