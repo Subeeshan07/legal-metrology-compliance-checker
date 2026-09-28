@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  compliance-checker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: legal_metrology_compliance_checker
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=production-secret-key-change-me
+      - LOG_LEVEL=INFO
+      - MAX_CONTENT_LENGTH_MB=16
+      - TESSERACT_CMD=/usr/bin/tesseract
+    volumes:
+      - uploads_data:/app/uploads
+      - sqlite_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  uploads_data:
+  sqlite_data:
