@@ -8,28 +8,25 @@ Purpose: Analyze packaged food product labels and verify mandatory declarations
 """
 
 import os
-import re
-import uuid
 import logging
-from datetime import datetime
 from PIL import Image
-import pandas as pd
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask
 from config.settings import Config
-from services.ocr_service import (
-    check_tesseract_available,
-    perform_ocr_on_image,
-)
-from services.extraction_service import extract_entities_from_text
-from services.compliance_service import LegalMetrologyComplianceEngine
+from utils.file_utils import ALLOWED_IMAGE_EXTENSIONS
 from repositories.product_repository import (
     load_dataset,
     save_record_to_dataset,
 )
-from utils.file_utils import (
-    ALLOWED_IMAGE_EXTENSIONS,
-    allowed_file,
+from services.ocr_service import check_tesseract_available
+from routes import (
+    web_bp,
+    scan_bp,
+    product_bp,
+    analytics_bp,
+    rules_bp,
 )
+
+
 # ---------------------------------------------------------------------------
 # Setup & Configuration
 # ---------------------------------------------------------------------------
@@ -152,323 +149,20 @@ except Exception as e:
     logger.warning(f"Could not pre-render sample images: {e}")
 
 
-# ---------------------------------------------------------------------------
-# API Routes
-# ---------------------------------------------------------------------------
+from routes import (
+    web_bp,
+    scan_bp,
+    product_bp,
+    analytics_bp,
+    rules_bp,
+)
 
-@app.route("/")
-def index():
-    tesseract_status = check_tesseract_available()
-    return render_template("index.html", tesseract_available=tesseract_status)
+app.register_blueprint(web_bp)
+app.register_blueprint(scan_bp)
+app.register_blueprint(product_bp)
+app.register_blueprint(analytics_bp)
+app.register_blueprint(rules_bp)
 
-
-@app.route("/static/samples/<path:filename>")
-def serve_samples(filename):
-    return send_from_directory(SAMPLES_FOLDER, filename)
-
-
-@app.route("/uploads/<path:filename>")
-def serve_uploads(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
-
-
-@app.route("/api/stats", methods=["GET"])
-def get_stats():
-    """
-    Returns aggregate compliance metrics and distribution charts for Chart.js
-    """
-    df = load_dataset()
-    if df.empty:
-        return jsonify({
-            "total_products": 0,
-            "compliant": 0,
-            "non_compliant": 0,
-            "needs_review": 0,
-            "compliance_distribution": {"Compliant": 0, "Non-Compliant": 0, "Needs Review": 0},
-            "top_violations": {},
-            "categories": {}
-        })
-
-    total = len(df)
-    status_counts = df["compliance_status"].value_counts().to_dict()
-    compliant = int(status_counts.get("COMPLIANT", 0))
-    non_compliant = int(status_counts.get("NON-COMPLIANT", 0))
-    needs_review = int(status_counts.get("NEEDS REVIEW", 0))
-
-    # Parse common violations
-    violation_freq = {}
-    for entry in df["violations"].dropna():
-        if "None" in str(entry):
-            continue
-        parts = str(entry).split(";")
-        for p in parts:
-            p_clean = p.strip()
-            if p_clean:
-                # Group by rule number
-                rule_match = re.match(r"(Rule\s*[\w\(\)]+)", p_clean)
-                key = rule_match.group(1) if rule_match else p_clean[:35]
-                # Label mapping for chart readability
-                label_map = {
-                    "Rule 6(1)(da)": "Rule 6(1)(da): MRP / Tax Clause Absent",
-                    "Rule 6(1)(c)": "Rule 6(1)(c): Net Qty / Non-standard Units",
-                    "Rule 6(1)(e)": "Rule 6(1)(e): Consumer Care Grievance Missing",
-                    "Rule 6(1)(n)": "Rule 6(1)(n): Country of Origin Absent",
-                    "Rule 6(1)(a)": "Rule 6(1)(a): Incomplete Manufacturer Address",
-                    "Rule 6(1)(d)": "Rule 6(1)(d): Month & Year of Mfg Missing",
-                    "Rule 7": "Rule 7: Font Size / Legibility Non-conformity"
-                }
-                display_label = label_map.get(key, key)
-                violation_freq[display_label] = violation_freq.get(display_label, 0) + 1
-
-    # Sort top violations
-    top_violations = dict(sorted(violation_freq.items(), key=lambda item: item[1], reverse=True)[:6])
-
-    # Category breakdown
-    category_counts = df["category"].value_counts().head(8).to_dict()
-
-    return jsonify({
-        "total_products": total,
-        "compliant": compliant,
-        "non_compliant": non_compliant,
-        "needs_review": needs_review,
-        "compliance_distribution": {
-            "Compliant": compliant,
-            "Non-Compliant": non_compliant,
-            "Needs Review": needs_review
-        },
-        "top_violations": top_violations,
-        "categories": category_counts
-    })
-
-
-@app.route("/api/products", methods=["GET"])
-def get_products():
-    """
-    Searchable and filterable product history endpoint.
-    """
-    df = load_dataset()
-    if df.empty:
-        return jsonify({"products": [], "total": 0})
-
-    search_query = request.args.get("search", "").strip().lower()
-    status_filter = request.args.get("status", "").strip()
-    category_filter = request.args.get("category", "").strip()
-    limit = int(request.args.get("limit", 100))
-    offset = int(request.args.get("offset", 0))
-
-    filtered_df = df.copy()
-
-    if status_filter and status_filter != "ALL":
-        filtered_df = filtered_df[filtered_df["compliance_status"] == status_filter]
-
-    if category_filter and category_filter != "ALL":
-        filtered_df = filtered_df[filtered_df["category"] == category_filter]
-
-    if search_query:
-        mask = (
-            filtered_df["product_name"].astype(str).str.lower().str.contains(search_query) |
-            filtered_df["id"].astype(str).str.lower().str.contains(search_query) |
-            filtered_df["manufacturer"].astype(str).str.lower().str.contains(search_query) |
-            filtered_df["violations"].astype(str).str.lower().str.contains(search_query)
-        )
-        filtered_df = filtered_df[mask]
-
-    total_matches = len(filtered_df)
-    paged_df = filtered_df.iloc[offset: offset + limit]
-    
-    products_list = paged_df.to_dict(orient="records")
-    return jsonify({
-        "products": products_list,
-        "total": total_matches
-    })
-
-
-@app.route("/api/scan", methods=["POST"])
-def scan_product():
-    """
-    Scans a product label image or sample text:
-    1. Preprocesses image
-    2. Runs Tesseract OCR (with intelligent fallback if host lacks binary)
-    3. Extracts packaged commodity entities
-    4. Evaluates against Legal Metrology Rules, 2011
-    """
-    sample_id = request.form.get("sample_id")
-    raw_manual_text = request.form.get("manual_text", "").strip()
-    image_url = None
-    extracted_text = ""
-    ocr_source = ""
-
-    # Check if a preset sample was requested
-    if sample_id:
-        sample_map = {
-            "compliant": {
-                "file": "sample_compliant_atta.png",
-                "text": (
-                    "HIMALAYAN CHAKKI FRESH ATTA\n"
-                    "100% Pure Whole Wheat Flour\n"
-                    "Net Quantity: 5 kg\n"
-                    "MRP Rs. 245.00 (Incl. of all taxes)\n"
-                    "Mfg Date: 05/2026\n"
-                    "Batch No: HCF-2026-B8\n"
-                    "Manufactured by: Pristine Foods & Agro Ltd,\n"
-                    "Phase 2, Peenya Industrial Area, Bengaluru - 560058\n"
-                    "Consumer Care: care@pristine.com | Ph: 1800-220-4400\n"
-                    "Country of Origin: India"
-                )
-            },
-            "non_compliant": {
-                "file": "sample_non_compliant_chips.png",
-                "text": (
-                    "CRUNCHY POTATO MASALA CHIPS\n"
-                    "Net Qty: 80 g\n"
-                    "MRP Rs. 40.00\n"
-                    "Mfg Date: 04/2026\n"
-                    "Manufactured by: Surya Snacks LLP, Industrial Zone"
-                )
-            },
-            "needs_review": {
-                "file": "sample_needs_review_spice.png",
-                "text": (
-                    "KASHMIRI DEGI RED CHILLI POWDER\n"
-                    "Net Quantity: 200 gms\n"
-                    "MRP Rs. 145.00 (Incl. of all taxes)\n"
-                    "PKD: 06/2026\n"
-                    "Mfd by: Kaveri Spices & Naturals, Idukki\n"
-                    "Consumer Care Helpline: 1800-435-8475\n"
-                    "Country of Origin: India"
-                )
-            }
-        }
-        if sample_id in sample_map:
-            sample_data = sample_map[sample_id]
-            extracted_text = sample_data["text"]
-            image_url = f"/static/samples/{sample_data['file']}"
-            ocr_source = "Pre-loaded Reference Package Sample"
-
-    # Check if a file was uploaded
-    elif "label_image" in request.files:
-        file = request.files["label_image"]
-        if file and file.filename != "" and allowed_file(file.filename):
-            ext = file.filename.rsplit(".", 1)[1].lower()
-            safe_name = f"scan_{uuid.uuid4().hex[:10]}.{ext}"
-            file_path = os.path.join(app.config["UPLOAD_FOLDER"], safe_name)
-            file.save(file_path)
-            image_url = f"/uploads/{safe_name}"
-
-            if check_tesseract_available():
-                extracted_text, ocr_source = perform_ocr_on_image(file_path)
-            else:
-                ocr_source = "Tesseract binary not installed on host machine"
-                extracted_text = raw_manual_text or (
-                    "Note: Tesseract OCR is not installed in the local environment.\n"
-                    "Please enter or adjust the label declarations in the text box below,\n"
-                    "or click one of the 'Quick Test Presets' above."
-                )
-
-    # Manual text input fallback
-    elif raw_manual_text:
-        extracted_text = raw_manual_text
-        ocr_source = "Manual Text Entry / Verification"
-
-    else:
-        return jsonify({"error": "No image file or sample selected."}), 400
-
-    # Extract declared entities
-    entities = extract_entities_from_text(extracted_text)
-    
-    # Run compliance rules evaluation
-    compliance_result = LegalMetrologyComplianceEngine.evaluate(entities)
-
-    return jsonify({
-        "success": True,
-        "image_url": image_url,
-        "ocr_text": extracted_text,
-        "ocr_source": ocr_source,
-        "tesseract_available": check_tesseract_available(),
-        "extracted_entities": entities,
-        "compliance": compliance_result
-    })
-
-
-@app.route("/api/save", methods=["POST"])
-def save_product():
-    """
-    Appends scanned product to history / CSV dataset
-    """
-    data = request.json or {}
-    new_id = f"LMC-{int(datetime.now().timestamp() % 100000):05d}"
-    
-    record = {
-        "id": new_id,
-        "product_name": data.get("product_name", "Unlabeled Product"),
-        "category": data.get("category", "Packaged Food"),
-        "manufacturer": data.get("manufacturer", "Not Declared"),
-        "net_quantity": data.get("net_quantity", "Not Declared"),
-        "mrp": data.get("mrp", "Not Declared"),
-        "mfg_date": data.get("mfg_date", "Not Declared"),
-        "consumer_care": data.get("consumer_care", "Not Declared"),
-        "country_of_origin": data.get("country_of_origin", "Not Declared"),
-        "compliance_status": data.get("compliance_status", "NEEDS REVIEW"),
-        "violations": data.get("violations", "None"),
-        "scanned_timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "ocr_confidence": data.get("ocr_confidence", "95%")
-    }
-    
-    success = save_record_to_dataset(record)
-    return jsonify({"success": success, "record": record})
-
-
-@app.route("/api/rules", methods=["GET"])
-def get_rules_reference():
-    """
-    Returns Legal Metrology (Packaged Commodities) Rules, 2011 documentation
-    for educational and reference tab.
-    """
-    rules = [
-        {
-            "rule": "Rule 6(1)(a)",
-            "title": "Name and Address of Manufacturer / Packer",
-            "description": "Every package shall bear the name and complete address of the manufacturer, or packer, or importer.",
-            "penalty": "Section 36 of Legal Metrology Act, 2009: Fine up to Rs. 25,000 for first offence."
-        },
-        {
-            "rule": "Rule 6(1)(b)",
-            "title": "Generic or Common Name",
-            "description": "The common or generic name of the commodity contained in the package must be prominently displayed on the Principal Display Panel.",
-            "penalty": "Fine up to Rs. 50,000 for second offence, imprisonment up to one year for subsequent offences."
-        },
-        {
-            "rule": "Rule 6(1)(c) & Rule 13",
-            "title": "Net Quantity & Standard Units",
-            "description": "Net quantity must be declared using standard SI symbols: 'g' for grams (not 'gms'/'gm'), 'kg' for kilograms, 'ml' for millilitres (not 'ML'/'ltr'), 'L' for litres, or 'N' for numbers.",
-            "penalty": "Seizure of non-standard packaged commodities under Section 15 of the Act."
-        },
-        {
-            "rule": "Rule 6(1)(d)",
-            "title": "Month and Year of Manufacture / Packing",
-            "description": "Month and year of manufacture or pre-packing must be stated clearly (e.g., '04/2026' or 'April 2026').",
-            "penalty": "Mandatory declaration under consumer right to information."
-        },
-        {
-            "rule": "Rule 6(1)(da)",
-            "title": "Maximum Retail Price (MRP)",
-            "description": "The retail sale price of the package in the format 'MRP Rs. XX.XX (incl. of all taxes)' or '₹ XX.XX (inclusive of all taxes)'. Charging above MRP is strictly punishable.",
-            "penalty": "Section 36(2): Fine up to Rs. 25,000 for first offence, Rs. 50,000 for second offence."
-        },
-        {
-            "rule": "Rule 6(1)(e)",
-            "title": "Consumer Grievance Redressal",
-            "description": "Name, address, telephone number, and email address of the person/cell that can be contacted in case of consumer complaints.",
-            "penalty": "Non-compliance treated as deceptive packaging practice."
-        },
-        {
-            "rule": "Rule 6(1)(n)",
-            "title": "Country of Origin",
-            "description": "Mandatory declaration of country of origin / manufacture for all domestic and imported packaged goods.",
-            "penalty": "Required under Consumer Protection (E-Commerce) Rules and Legal Metrology amendment."
-        }
-    ]
-    return jsonify({"rules": rules})
 
 
 # ---------------------------------------------------------------------------
