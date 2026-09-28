@@ -70,6 +70,48 @@ def create_app(config_class=Config):
     flask_app.register_blueprint(analytics_bp)
     flask_app.register_blueprint(rules_bp)
 
+    # -----------------------------------------------------------------------
+    # Production Security Headers Middleware
+    # -----------------------------------------------------------------------
+    @flask_app.after_request
+    def set_security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+    # -----------------------------------------------------------------------
+    # Health & Readiness Check Endpoint
+    # -----------------------------------------------------------------------
+    @flask_app.route("/health", methods=["GET"])
+    def health_check():
+        from datetime import datetime
+        tess_status = check_tesseract_available()
+        return {
+            "status": "UP",
+            "service": "Legal Metrology Compliance & Counterfeit Risk Checker",
+            "ocr_engine": "ACTIVE" if tess_status else "STANDBY_FALLBACK",
+            "database": "SQLITE_READY",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }, 200
+
+    # -----------------------------------------------------------------------
+    # Central Error Handlers
+    # -----------------------------------------------------------------------
+    @flask_app.errorhandler(413)
+    def file_too_large(e):
+        return {"error": "Uploaded image exceeds the 16MB file size limit."}, 413
+
+    @flask_app.errorhandler(404)
+    def not_found(e):
+        return {"error": "Resource not found."}, 404
+
+    @flask_app.errorhandler(500)
+    def internal_error(e):
+        logger.error(f"Internal server error: {e}")
+        return {"error": "Internal server error occurred."}, 500
+
     return flask_app
 
 
