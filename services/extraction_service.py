@@ -61,9 +61,9 @@ def extract_entities_from_text(raw_text):
         extracted["net_quantity"] = net_qty_match.group(1).strip()
 
     else:
-        # Fallback standalone quantity search
+        # Fallback standalone quantity search - supports 250 g, 500 g, 1 kg, 250 gm, etc.
         fallback_qty = re.search(
-            r"\b(\d+(?:\.\d+)?\s*(?:kg|gms?|ml|ltr|litres?))\b",
+            r"\b(\d+(?:\.\d+)?\s*(?:kg|g|gms?|ml|ltr|litres?))\b",
             cleaned_text,
             re.IGNORECASE,
         )
@@ -116,7 +116,15 @@ def extract_entities_from_text(raw_text):
     )
 
     if mfg_match:
-        extracted["mfg_date"] = mfg_match.group(1).strip()
+        raw_mfg = mfg_match.group(1).strip()
+        # Clean noise words such as 'during', 'on', 'in', 'date'
+        cleaned_mfg = re.sub(r"^(?:during|on|in|date)\s+", "", raw_mfg, flags=re.IGNORECASE).strip()
+        # If a pure MM/YYYY or MM-YYYY is present, extract only the date
+        date_pattern = re.search(r"\b(0?[1-9]|1[0-2])[\/\-](20\d\d)\b", cleaned_mfg)
+        if date_pattern:
+            extracted["mfg_date"] = date_pattern.group(0).strip()
+        else:
+            extracted["mfg_date"] = cleaned_mfg
 
     else:
         # Fallback MM/YYYY or MM-YYYY
@@ -130,6 +138,7 @@ def extract_entities_from_text(raw_text):
             extracted["mfg_date"] = (
                 dt_fallback.group(0).strip()
             )
+
 
     # ------------------------------------------------------------------
     # 4. Consumer Care Details
