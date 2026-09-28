@@ -22,6 +22,10 @@ from services.ocr_service import (
 )
 from services.extraction_service import extract_entities_from_text
 from services.compliance_service import LegalMetrologyComplianceEngine
+from repositories.product_repository import (
+    load_dataset,
+    save_record_to_dataset,
+)
 from utils.file_utils import (
     ALLOWED_IMAGE_EXTENSIONS,
     allowed_file,
@@ -56,35 +60,6 @@ ALLOWED_EXTENSIONS = ALLOWED_IMAGE_EXTENSIONS
 # ---------------------------------------------------------------------------
 # OCR & Entity Extraction Engine
 # ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
-# Dataset Helper Operations
-# ---------------------------------------------------------------------------
-def load_dataset():
-    if not os.path.isfile(DATASET_PATH):
-        logger.warning("Dataset CSV not found. Returning empty DataFrame.")
-        return pd.DataFrame()
-    try:
-        return pd.read_csv(DATASET_PATH, encoding="utf-8")
-    except Exception as e:
-        logger.error(f"Error loading CSV dataset: {e}")
-        return pd.DataFrame()
-
-
-def save_record_to_dataset(record_dict):
-    """
-    Appends a new scanned record into the CSV dataset.
-    """
-    df = load_dataset()
-    new_df = pd.DataFrame([record_dict])
-    if df.empty:
-        updated_df = new_df
-    else:
-        updated_df = pd.concat([new_df, df], ignore_index=True)
-    
-    updated_df.to_csv(DATASET_PATH, index=False, encoding="utf-8")
-    return True
 
 
 # ---------------------------------------------------------------------------
