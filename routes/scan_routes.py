@@ -32,6 +32,15 @@ def scan_product():
     file_path = None
     manual_text = None
 
+    # Rate limit protection (bypassed only in automated test suite)
+    if not current_app.config.get("TESTING", False):
+        from utils.rate_limiter import scan_rate_limiter
+        client_id = scan_rate_limiter.get_client_id()
+        if not scan_rate_limiter.is_allowed(client_id):
+            return jsonify({
+                "error": "Scan request rate limit exceeded (30 scans / minute). Please wait a few seconds before retrying."
+            }), 429
+
     # Check preset sample
     if sample_id:
         sample_map = {
@@ -86,11 +95,23 @@ def scan_product():
     elif "label_image" in request.files:
         file = request.files["label_image"]
         if file and file.filename != "" and allowed_file(file.filename):
+            from utils.file_utils import validate_image_signature
             ext = file.filename.rsplit(".", 1)[1].lower()
-            safe_name = f"scan_{uuid.uuid4().hex[:10]}.{ext}"
+            safe_name = f"scan_{uuid.uuid4().hex[:12]}.{ext}"
             upload_folder = current_app.config.get("UPLOAD_FOLDER")
             file_path = os.path.join(upload_folder, safe_name)
             file.save(file_path)
+
+            # Security: Validate magic bytes to thwart disguised scripts
+            if not validate_image_signature(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
+                return jsonify({
+                    "error": "Security validation failed: File content does not match genuine image signature."
+                }), 400
+
             image_url = f"/uploads/{safe_name}"
 
             if not check_tesseract_available():
@@ -99,6 +120,8 @@ def scan_product():
                     "Please enter or adjust the label declarations in the text box below,\n"
                     "or click one of the 'Quick Test Presets' above."
                 )
+        else:
+            return jsonify({"error": "Unsupported file format. Allowed extensions: png, jpg, jpeg, webp, bmp, tiff."}), 400
 
     elif raw_manual_text:
         manual_text = raw_manual_text
