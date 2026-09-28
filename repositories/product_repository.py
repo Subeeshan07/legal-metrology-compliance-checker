@@ -4,16 +4,13 @@ Product dataset repository.
 This module contains persistence operations for the Legal Metrology
 product dataset.
 
-The current persistence backend remains the existing CSV file.
+Preserves the CSV dataset interface while seamlessly synchronizing with SQLite.
 """
 
 import logging
 import os
-
 import pandas as pd
-
 from config.settings import Config
-
 
 logger = logging.getLogger(__name__)
 
@@ -54,4 +51,13 @@ def save_record_to_dataset(record_dict):
         updated_df = pd.concat([new_df, df], ignore_index=True)
 
     updated_df.to_csv(DATASET_PATH, index=False, encoding="utf-8")
+
+    # If the default dataset path is in use, also sync to SQLite
+    if DATASET_PATH == Config.DATASET_PATH:
+        try:
+            from repositories.database_repository import db_repository
+            db_repository.save_product_record(record_dict)
+        except Exception as e:
+            logger.warning(f"Could not mirror record to SQLite: {e}")
+
     return True
