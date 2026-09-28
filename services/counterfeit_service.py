@@ -11,8 +11,10 @@ Combines multiple packaging integrity signals to evaluate counterfeit risk:
 Determines overall risk tier: LOW, MEDIUM, or HIGH, accompanied by auditable evidence.
 """
 
+import re
 from typing import Dict, Any, Optional, List
 from models.enums import CounterfeitRisk
+
 from services.product_identification_service import product_identification_service
 from services.barcode_service import BarcodeService
 from services.packaging_layout_service import PackagingLayoutService
@@ -51,16 +53,18 @@ class FoodCounterfeitRiskEngine:
         positive_signals: List[str] = []
         evidence_log: Dict[str, Any] = {}
 
-        # 2. Typo / Brand Squatting Check
+        # 2. Typo / Brand Squatting Check (Whole-word matching)
         full_text_lower = (raw_ocr_text + " " + extracted_entities.get("product_name", "")).lower()
         if reference:
             for known_fake in reference.get("known_counterfeit_typos", []):
-                if known_fake.lower() in full_text_lower:
+                pattern = r"\b" + re.escape(known_fake.lower()) + r"\b"
+                if re.search(pattern, full_text_lower):
                     risk_score += 45.0
                     msg = f"Brand squatting pattern detected: text contains '{known_fake}', a known imitation variant of '{reference.get('brand')}'."
                     risk_factors.append(msg)
                     evidence_log["brand_spoofing"] = msg
                     break
+
 
         # 3. Manufacturer Legitimacy
         scanned_mfr = extracted_entities.get("manufacturer", "")

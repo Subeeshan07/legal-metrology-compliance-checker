@@ -6,9 +6,8 @@ import os
 import uuid
 from datetime import datetime
 from flask import Blueprint, current_app, jsonify, request
-from services.ocr_service import check_tesseract_available, perform_ocr_on_image
-from services.extraction_service import extract_entities_from_text
-from services.compliance_service import LegalMetrologyComplianceEngine
+from services.ocr_service import check_tesseract_available
+from services.analysis_orchestrator import AnalysisOrchestrator
 from repositories.product_repository import save_record_to_dataset
 from utils.file_utils import allowed_file
 
@@ -18,19 +17,21 @@ scan_bp = Blueprint("scan", __name__)
 @scan_bp.route("/api/scan", methods=["POST"])
 def scan_product():
     """
-    Scans a product label image or sample text:
-    1. Preprocesses image
-    2. Runs Tesseract OCR (with intelligent fallback if host lacks binary)
-    3. Extracts packaged commodity entities
-    4. Evaluates against Legal Metrology Rules, 2011
+    Unified multi-stage scan pipeline:
+    1. Image Quality Assessment
+    2. OCR Processing & Confidence
+    3. Mandatory Entity Extraction & Normalization
+    4. Legal Metrology Compliance Checking (Rule 6 & Rule 13)
+    5. Food Counterfeit Risk Detection
     """
     sample_id = request.form.get("sample_id")
     raw_manual_text = request.form.get("manual_text", "").strip()
+    barcode_input = request.form.get("barcode", "").strip() or None
     image_url = None
-    extracted_text = ""
-    ocr_source = ""
+    file_path = None
+    manual_text = None
 
-    # Check if a preset sample was requested
+    # Check preset sample
     if sample_id:
         sample_map = {
             "compliant": {
@@ -45,7 +46,8 @@ def scan_product():
                     "Manufactured by: Pristine Foods & Agro Ltd,\n"
                     "Phase 2, Peenya Industrial Area, Bengaluru - 560058\n"
                     "Consumer Care: care@pristine.com | Ph: 1800-220-4400\n"
-                    "Country of Origin: India"
+                    "Country of Origin: India\n"
+                    "Barcode: 8901234567890"
                 )
             },
             "non_compliant": {
@@ -73,11 +75,13 @@ def scan_product():
         }
         if sample_id in sample_map:
             sample_data = sample_map[sample_id]
-            extracted_text = sample_data["text"]
+            manual_text = sample_data["text"]
             image_url = f"/static/samples/{sample_data['file']}"
-            ocr_source = "Pre-loaded Reference Package Sample"
+            sample_dir = current_app.config.get("SAMPLES_FOLDER")
+            if sample_dir:
+                file_path = os.path.join(sample_dir, sample_data["file"])
 
-    # Check if a file was uploaded
+    # Check uploaded file
     elif "label_image" in request.files:
         file = request.files["label_image"]
         if file and file.filename != "" and allowed_file(file.filename):
@@ -88,38 +92,38 @@ def scan_product():
             file.save(file_path)
             image_url = f"/uploads/{safe_name}"
 
-            if check_tesseract_available():
-                extracted_text, ocr_source = perform_ocr_on_image(file_path)
-            else:
-                ocr_source = "Tesseract binary not installed on host machine"
-                extracted_text = raw_manual_text or (
+            if not check_tesseract_available():
+                manual_text = raw_manual_text or (
                     "Note: Tesseract OCR is not installed in the local environment.\n"
                     "Please enter or adjust the label declarations in the text box below,\n"
                     "or click one of the 'Quick Test Presets' above."
                 )
 
-    # Manual text input fallback
     elif raw_manual_text:
-        extracted_text = raw_manual_text
-        ocr_source = "Manual Text Entry / Verification"
+        manual_text = raw_manual_text
 
     else:
         return jsonify({"error": "No image file or sample selected."}), 400
 
-    # Extract declared entities
-    entities = extract_entities_from_text(extracted_text)
-
-    # Run compliance rules evaluation
-    compliance_result = LegalMetrologyComplianceEngine.evaluate(entities)
+    # Run unified analysis orchestrator
+    analysis = AnalysisOrchestrator.analyze_scan(
+        image_path=file_path,
+        manual_text=manual_text,
+        barcode=barcode_input,
+    )
 
     return jsonify({
         "success": True,
         "image_url": image_url,
-        "ocr_text": extracted_text,
-        "ocr_source": ocr_source,
-        "tesseract_available": check_tesseract_available(),
-        "extracted_entities": entities,
-        "compliance": compliance_result
+        "ocr_text": analysis["ocr_text"],
+        "ocr_source": analysis["ocr_source"],
+        "ocr_confidence": analysis["ocr_confidence"],
+        "tesseract_available": analysis["tesseract_available"],
+        "extracted_entities": analysis["extracted_entities"],
+        "compliance": analysis["compliance"],
+        "counterfeit_risk": analysis["counterfeit_risk"],
+        "image_quality": analysis["image_quality"],
+        "unified_report": analysis["unified_report"],
     })
 
 
