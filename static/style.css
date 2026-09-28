@@ -1303,6 +1303,193 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* --------------------------------------------------------------------------
+   Phase 7: Dual Outcomes Grid, Risk Intelligence & Quality Metrics
+   -------------------------------------------------------------------------- */
+.dual-outcomes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 900px) {
+    .dual-outcomes-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.banner-risk-low {
+    background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+    color: #ffffff;
+    border-left: 6px solid #10b981;
+}
+
+.banner-risk-medium {
+    background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+    color: #ffffff;
+    border-left: 6px solid #f59e0b;
+}
+
+.banner-risk-high {
+    background: linear-gradient(135deg, #991b1b 0%, #b91c1c 100%);
+    color: #ffffff;
+    border-left: 6px solid #ef4444;
+}
+
+.barcode-section {
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px;
+}
+
+.barcode-input-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.barcode-quick-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.badge-chip {
+    background: #e2e8f0;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.badge-chip:hover {
+    background: #cbd5e1;
+}
+
+.badge-chip.chip-warn {
+    background: #fef3c7;
+    border-color: #fde68a;
+    color: #92400e;
+}
+
+.results-actions-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.quality-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    padding: 14px;
+}
+
+.quality-metric-item {
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.qm-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.qm-val {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--secondary);
+    margin-top: 4px;
+}
+
+.qm-status {
+    font-size: 11px;
+    margin-top: 2px;
+    font-weight: 600;
+}
+
+.counterfeit-details-body {
+    padding: 14px;
+}
+
+.signals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.signal-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-radius: var(--radius-md);
+    border-left: 4px solid #cbd5e1;
+    gap: 12px;
+}
+
+.signal-row.signal-pass {
+    border-left-color: #10b981;
+}
+
+.signal-row.signal-warn {
+    border-left-color: #f59e0b;
+}
+
+.signal-row.signal-fail {
+    border-left-color: #ef4444;
+}
+
+.signal-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.signal-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--secondary);
+}
+
+.signal-detail {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.modal-verdicts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.report-verdict-heading {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    color: #475569;
+}
+
+
+/* --------------------------------------------------------------------------
    Print Stylesheet (@media print)
    -------------------------------------------------------------------------- */
 @media print {

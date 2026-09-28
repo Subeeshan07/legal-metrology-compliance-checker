@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Legal Metrology Packaged Commodity Compliance Checker</title>
+    <title>Legal Metrology & Food Counterfeit Risk Intelligence System</title>
     <!-- Google Fonts: Inter & Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,15 +25,15 @@
                     <i class="fa-solid fa-scale-balanced"></i>
                 </div>
                 <div class="brand-text">
-                    <h1>Legal Metrology Compliance Checker</h1>
-                    <p class="brand-sub">Packaged Commodity Declarations Verifier • PCR, 2011 Regulatory Engine</p>
+                    <h1>Legal Metrology & Food Counterfeit Checker</h1>
+                    <p class="brand-sub">Packaged Commodity Verifier (PCR, 2011) • Counterfeit Risk Intelligence Engine</p>
                 </div>
             </div>
 
             <div class="header-actions">
                 <div class="engine-badge {% if tesseract_available %}badge-ocr-active{% else %}badge-ocr-fallback{% endif %}" id="engine-badge">
                     <span class="pulse-dot"></span>
-                    <span id="engine-badge-text">OCR: {% if tesseract_available %}Local Tesseract OCR{% else %}Hybrid Assisted{% endif %}</span>
+                    <span id="engine-badge-text">OCR: {% if tesseract_available %}Local Tesseract Engine{% else %}Hybrid Assisted{% endif %}</span>
                 </div>
                 <button class="btn btn-primary" onclick="switchTab('scanner')">
                     <i class="fa-solid fa-camera"></i> Scan New Label
@@ -48,10 +48,10 @@
                     <i class="fa-solid fa-chart-pie"></i> Dashboard
                 </button>
                 <button class="nav-tab" data-tab="scanner" onclick="switchTab('scanner')">
-                    <i class="fa-solid fa-qrcode"></i> Product Scanner
+                    <i class="fa-solid fa-qrcode"></i> Unified Scanner
                 </button>
                 <button class="nav-tab" data-tab="history" onclick="switchTab('history')">
-                    <i class="fa-solid fa-boxes-stacked"></i> Product History
+                    <i class="fa-solid fa-boxes-stacked"></i> Surveillance Registry
                 </button>
                 <button class="nav-tab" data-tab="rules" onclick="switchTab('rules')">
                     <i class="fa-solid fa-book-bookmark"></i> Legal Rules (PCR 2011)
@@ -71,8 +71,8 @@
             <div class="alert alert-info">
                 <i class="fa-solid fa-circle-info"></i>
                 <div>
-                    <strong>Smart India Hackathon Prototype:</strong>
-                    This system evaluates packaged food labels against mandatory provisions of the <em>Legal Metrology (Packaged Commodities) Rules, 2011</em>. Dataset contains 1,150+ synthetic test records for regulatory demonstration.
+                    <strong>Regulatory Surveillance Intelligence:</strong>
+                    This system simultaneously evaluates packaged food commodities against mandatory provisions of the <em>Legal Metrology (Packaged Commodities) Rules, 2011</em> and performs multi-signal <em>Food Counterfeit Risk Detection</em> (brand squatting, unauthorized manufacturers, GTIN-13 checksums, and layout consistency).
                 </div>
             </div>
 
@@ -81,16 +81,16 @@
                 <div class="metric-card card-total">
                     <div class="metric-icon"><i class="fa-solid fa-box-open"></i></div>
                     <div class="metric-data">
-                        <span class="metric-label">Total Products Scanned</span>
+                        <span class="metric-label">Total Commodities Scanned</span>
                         <h2 class="metric-value" id="stat-total">--</h2>
-                        <span class="metric-hint">Dataset Surveillance Pool</span>
+                        <span class="metric-hint">Active Surveillance Pool</span>
                     </div>
                 </div>
 
                 <div class="metric-card card-compliant">
                     <div class="metric-icon"><i class="fa-solid fa-circle-check"></i></div>
                     <div class="metric-data">
-                        <span class="metric-label">Compliant Products</span>
+                        <span class="metric-label">Compliant Packages</span>
                         <h2 class="metric-value text-success" id="stat-compliant">--</h2>
                         <span class="metric-hint" id="stat-compliant-pct">--% full conformity</span>
                     </div>
@@ -101,7 +101,7 @@
                     <div class="metric-data">
                         <span class="metric-label">Non-Compliant</span>
                         <h2 class="metric-value text-danger" id="stat-non-compliant">--</h2>
-                        <span class="metric-hint" id="stat-non-compliant-pct">--% declaration violations</span>
+                        <span class="metric-hint" id="stat-non-compliant-pct">--% statutory violations</span>
                     </div>
                 </div>
 
@@ -110,7 +110,7 @@
                     <div class="metric-data">
                         <span class="metric-label">Needs Review</span>
                         <h2 class="metric-value text-warning" id="stat-review">--</h2>
-                        <span class="metric-hint" id="stat-review-pct">--% non-standard / incomplete</span>
+                        <span class="metric-hint" id="stat-review-pct">--% non-standard / partial</span>
                     </div>
                 </div>
             </div>
@@ -126,9 +126,7 @@
                     <div class="chart-container doughnut-wrapper">
                         <canvas id="complianceDoughnutChart"></canvas>
                     </div>
-                    <div class="chart-legend-custom" id="doughnut-legend">
-                        <!-- Populated by JS -->
-                    </div>
+                    <div class="chart-legend-custom" id="doughnut-legend"></div>
                 </div>
 
                 <!-- Bar Chart -->
@@ -169,7 +167,6 @@
                             </tr>
                         </thead>
                         <tbody id="recent-scans-body">
-                            <!-- Populated by script.js -->
                             <tr><td colspan="8" class="text-center py-4">Loading surveillance records...</td></tr>
                         </tbody>
                     </table>
@@ -179,7 +176,7 @@
 
 
         <!-- ===================================================================
-             TAB 2: PRODUCT SCANNER
+             TAB 2: UNIFIED PRODUCT SCANNER
         ==================================================================== -->
         <section id="tab-scanner" class="tab-pane">
             <div class="scanner-layout">
@@ -188,8 +185,8 @@
                 <div class="scanner-controls-panel">
                     <div class="dashboard-card">
                         <div class="card-header">
-                            <h3><i class="fa-solid fa-upload"></i> Label Image Ingestion</h3>
-                            <span class="badge-sub">Optical Character Recognition</span>
+                            <h3><i class="fa-solid fa-upload"></i> Packaging Ingestion</h3>
+                            <span class="badge-sub">OCR & Computer Vision Pipeline</span>
                         </div>
 
                         <!-- Sample Label Presets for Instant Testing -->
@@ -197,10 +194,10 @@
                             <label class="section-subheading"><i class="fa-solid fa-bolt"></i> Quick Test Sample Presets:</label>
                             <div class="preset-chips">
                                 <button class="chip chip-success" onclick="loadSample('compliant')">
-                                    <i class="fa-solid fa-check"></i> Compliant Atta
+                                    <i class="fa-solid fa-check"></i> Compliant Atta (Genuine)
                                 </button>
                                 <button class="chip chip-danger" onclick="loadSample('non_compliant')">
-                                    <i class="fa-solid fa-xmark"></i> Non-Compliant Snack
+                                    <i class="fa-solid fa-xmark"></i> Non-Compliant Chips
                                 </button>
                                 <button class="chip chip-warning" onclick="loadSample('needs_review')">
                                     <i class="fa-solid fa-triangle-exclamation"></i> Needs Review Spice
@@ -213,7 +210,7 @@
                             <input type="file" id="label-image-input" accept="image/*" class="file-input">
                             <div class="dropzone-content" id="dropzone-content">
                                 <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
-                                <h4>Drag and drop product packaging label here</h4>
+                                <h4>Drag and drop packaging photo here</h4>
                                 <p>Supports JPG, PNG, WEBP high-resolution packaging photos</p>
                                 <span class="btn btn-secondary btn-sm mt-2">Browse Files</span>
                             </div>
@@ -225,23 +222,37 @@
                             </div>
                         </div>
 
+                        <!-- Barcode / GTIN-13 Input -->
+                        <div class="barcode-section mt-3">
+                            <label for="barcode-input" class="field-label">
+                                <i class="fa-solid fa-barcode"></i> Barcode / GTIN-13 Identifier (Optional):
+                            </label>
+                            <div class="barcode-input-row">
+                                <input type="text" id="barcode-input" class="form-input" placeholder="e.g. 8901234567890">
+                                <div class="barcode-quick-chips">
+                                    <button type="button" class="badge-chip" onclick="setBarcode('8901234567890')">Himalayan EAN</button>
+                                    <button type="button" class="badge-chip chip-warn" onclick="setBarcode('8909999999999')">Unregistered EAN</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- OCR Raw Text Inspection / Editing -->
                         <div class="raw-text-wrapper mt-3">
                             <div class="space-between mb-1">
                                 <label for="raw-ocr-text" class="field-label">
-                                    <i class="fa-solid fa-align-left"></i> Extracted OCR Text:
+                                    <i class="fa-solid fa-align-left"></i> Extracted OCR Declarations:
                                 </label>
                                 <span class="badge-soft text-muted" id="ocr-source-tag">Source: Ready</span>
                             </div>
-                            <textarea id="raw-ocr-text" rows="7" class="form-textarea" placeholder="OCR extracted text will display here. You can also paste or edit label text directly to verify edge-case compliance..."></textarea>
+                            <textarea id="raw-ocr-text" rows="6" class="form-textarea" placeholder="OCR extracted text will display here. You can also paste or edit label text directly to verify edge-case compliance..."></textarea>
                         </div>
 
                         <!-- Action Buttons -->
                         <div class="action-buttons-row mt-3">
                             <button id="btn-analyze" class="btn btn-primary btn-block" onclick="runAnalysis()">
-                                <i class="fa-solid fa-shield-halved"></i> Analyze Declarations
+                                <i class="fa-solid fa-shield-halved"></i> Run Unified Analysis
                             </button>
-                            <button id="btn-reset" class="btn btn-secondary" onclick="resetScanner()">
+                            <button id="btn-reset" class="btn btn-secondary" onclick="resetScanner()" title="Reset Scanner">
                                 <i class="fa-solid fa-rotate-left"></i>
                             </button>
                         </div>
@@ -253,37 +264,80 @@
                     <!-- Placeholder State before scan -->
                     <div id="scanner-placeholder" class="dashboard-card empty-state-card">
                         <div class="empty-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
-                        <h3>No Package Analyzed Yet</h3>
-                        <p>Upload a product packaging label or select one of the Quick Test Sample Presets on the left to initiate automated Rule 6 compliance verification.</p>
+                        <h3>No Commodity Analyzed Yet</h3>
+                        <p>Upload a product packaging photo or select one of the Quick Test Presets on the left to initiate automated Legal Metrology compliance verification and Food Counterfeit risk evaluation.</p>
                     </div>
 
                     <!-- Active Analysis Results Container -->
                     <div id="scanner-results" class="hidden">
-                        <!-- Overall Status Banner -->
-                        <div id="status-banner" class="status-banner banner-compliant">
-                            <div class="banner-icon" id="banner-icon">
-                                <i class="fa-solid fa-shield-check"></i>
+                        
+                        <!-- DUAL OUTCOME GRID: Legal Compliance + Counterfeit Risk -->
+                        <div class="dual-outcomes-grid">
+                            <!-- Stream 1: Legal Metrology Compliance -->
+                            <div id="status-banner" class="status-banner banner-compliant">
+                                <div class="banner-icon" id="banner-icon">
+                                    <i class="fa-solid fa-shield-check"></i>
+                                </div>
+                                <div class="banner-content">
+                                    <span class="banner-kicker">Outcome 1 • Statutory Mandate</span>
+                                    <h2 id="banner-status-text">COMPLIANT</h2>
+                                    <p id="banner-subtext">All mandatory packaging declarations conform with Legal Metrology (Packaged Commodities) Rules, 2011.</p>
+                                </div>
                             </div>
-                            <div class="banner-content">
-                                <span class="banner-kicker">Legal Metrology Verdict</span>
-                                <h2 id="banner-status-text">COMPLIANT</h2>
-                                <p id="banner-subtext">All mandatory packaging declarations conform with Legal Metrology (Packaged Commodities) Rules, 2011.</p>
+
+                            <!-- Stream 2: Food Counterfeit Risk Analysis -->
+                            <div id="counterfeit-banner" class="status-banner banner-risk-low">
+                                <div class="banner-icon" id="counterfeit-banner-icon">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                </div>
+                                <div class="banner-content">
+                                    <span class="banner-kicker">Outcome 2 • Brand Authenticity</span>
+                                    <h2 id="counterfeit-risk-text">LOW RISK (10%)</h2>
+                                    <p id="counterfeit-risk-subtext">Packaging attributes and declarations align with genuine reference specifications.</p>
+                                </div>
                             </div>
-                            <div class="banner-actions">
-                                <button class="btn btn-white btn-sm" onclick="openPrintModal()">
-                                    <i class="fa-solid fa-print"></i> Generate Audit Sheet
-                                </button>
-                                <button class="btn btn-secondary btn-sm mt-1" id="btn-save-record" onclick="saveCurrentScan()">
-                                    <i class="fa-solid fa-floppy-disk"></i> Save to Records
-                                </button>
+                        </div>
+
+                        <!-- Action Toolbar for Results -->
+                        <div class="results-actions-bar mt-3">
+                            <button class="btn btn-primary btn-sm" onclick="openPrintModal()">
+                                <i class="fa-solid fa-file-invoice"></i> Inspection Audit Sheet
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="exportScanReportJSON()">
+                                <i class="fa-solid fa-download"></i> Export JSON Report
+                            </button>
+                            <button class="btn btn-secondary btn-sm" id="btn-save-record" onclick="saveCurrentScan()">
+                                <i class="fa-solid fa-floppy-disk"></i> Save to Registry
+                            </button>
+                        </div>
+
+                        <!-- Image Quality Pre-check Card -->
+                        <div class="dashboard-card mt-3" id="image-quality-card">
+                            <div class="card-header space-between">
+                                <h3><i class="fa-solid fa-sliders"></i> Image Quality Assessment</h3>
+                                <span class="badge-soft" id="quality-grade-badge">Grade: EXCELLENT</span>
+                            </div>
+                            <div class="quality-metrics-grid" id="quality-metrics-grid">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Counterfeit Signals Breakdown Card -->
+                        <div class="dashboard-card mt-3">
+                            <div class="card-header space-between">
+                                <h3><i class="fa-solid fa-fingerprint"></i> Food Counterfeit Risk Intelligence</h3>
+                                <span class="badge-sub" id="product-id-badge">Identified Brand: Unknown</span>
+                            </div>
+                            <div class="counterfeit-details-body" id="counterfeit-details-body">
+                                <!-- Populated dynamically -->
                             </div>
                         </div>
 
                         <!-- Extracted Declarations Card -->
                         <div class="dashboard-card mt-3">
                             <div class="card-header">
-                                <h3><i class="fa-solid fa-list-check"></i> Extracted Packaged Commodity Declarations</h3>
-                                <span class="badge-sub">Parsed Entities</span>
+                                <h3><i class="fa-solid fa-list-check"></i> Extracted Declarations & Normalized Evidence</h3>
+                                <span class="badge-sub">Parsed Entities with Rule Mapping</span>
                             </div>
                             <div class="declarations-grid" id="declarations-grid">
                                 <!-- Populated dynamically by script.js -->
@@ -293,8 +347,8 @@
                         <!-- Rule-by-Rule Compliance Breakdown -->
                         <div class="dashboard-card mt-3">
                             <div class="card-header">
-                                <h3><i class="fa-solid fa-gavel"></i> Rule-by-Rule Verification (PCR, 2011)</h3>
-                                <span class="badge-sub">Statutory Provisions</span>
+                                <h3><i class="fa-solid fa-gavel"></i> Statutory Rule Verification (PCR, 2011)</h3>
+                                <span class="badge-sub">Legal Provisions Audit</span>
                             </div>
                             <div class="rules-checklist" id="rules-checklist">
                                 <!-- Populated dynamically by script.js -->
@@ -316,7 +370,7 @@
                 <div class="card-header space-between flex-wrap">
                     <div>
                         <h3><i class="fa-solid fa-database"></i> Packaged Commodity Surveillance Registry</h3>
-                        <span class="badge-sub">Searchable Historical Database (1,150+ Records)</span>
+                        <span class="badge-sub">Audited Historical Database (SQLite + CSV Dual Sync)</span>
                     </div>
                     <div class="header-tools">
                         <button class="btn btn-secondary btn-sm" onclick="exportFilteredCSV()">
@@ -329,11 +383,11 @@
                 <div class="filters-bar mt-3">
                     <div class="search-box">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="history-search" placeholder="Search by product name, manufacturer, ID, or violation..." oninput="debounceSearch()">
+                        <input type="text" id="history-search" placeholder="Search by commodity name, manufacturer, ID, or violation..." oninput="debounceSearch()">
                     </div>
 
                     <div class="filter-group">
-                        <label for="history-status-filter"><i class="fa-solid fa-filter"></i> Status:</label>
+                        <label for="history-status-filter"><i class="fa-solid fa-filter"></i> Legal Status:</label>
                         <select id="history-status-filter" class="form-select" onchange="loadHistoryData()">
                             <option value="ALL">All Statuses</option>
                             <option value="COMPLIANT">Compliant Only</option>
@@ -402,95 +456,54 @@
             <div class="dashboard-card">
                 <div class="card-header">
                     <div>
-                        <h3><i class="fa-solid fa-scale-unbalanced-flip"></i> Legal Metrology (Packaged Commodities) Rules, 2011</h3>
-                        <span class="badge-sub">Statutory Provisions, Mandatory Declarations & Legal Penalties</span>
+                        <h3><i class="fa-solid fa-scale-balanced"></i> Statutory Provisions & Legal Rules Reference</h3>
+                        <span class="badge-sub">Legal Metrology (Packaged Commodities) Rules, 2011</span>
                     </div>
                 </div>
-                
-                <div class="rules-reference-intro">
-                    <p>
-                        Under <strong>Section 18</strong> of the <strong>Legal Metrology Act, 2009</strong> and <strong>Rule 6 of the Legal Metrology (Packaged Commodities) Rules, 2011</strong>, every pre-packaged commodity distributed, sold, or offered for retail sale in India must display clear, unambiguous, and mandatory statutory declarations on its Principal Display Panel.
-                    </p>
+
+                <div class="rules-reference-intro mt-3">
+                    <p>Every packaged commodity intended for retail sale across India is strictly governed by the <strong>Legal Metrology Act, 2009</strong> and the <strong>Legal Metrology (Packaged Commodities) Rules, 2011</strong>. The automated compliance engine systematically executes statutory validation routines corresponding to each clause of Rule 6 and Rule 13.</p>
                 </div>
 
-                <div class="rules-cards-grid" id="rules-cards-grid">
-                    <!-- Populated by script.js -->
+                <div class="rules-cards-grid mt-4" id="rules-reference-grid">
+                    <!-- Populated dynamically by script.js from /api/rules -->
                 </div>
-
-                <!-- Standard Units Guide Table -->
-                <div class="sub-table-block mt-4">
-                    <h4><i class="fa-solid fa-ruler-combined"></i> Standard Units of Measurement (Rule 13 & Second Schedule)</h4>
-                    <table class="data-table mt-2">
-                        <thead>
-                            <tr>
-                                <th>Measurement Type</th>
-                                <th>Standard Mandatory Unit Symbol</th>
-                                <th>Prohibited Non-Standard Symbols (Violation)</th>
-                                <th>Statutory Provision</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Mass / Weight (Solid)</td>
-                                <td><strong>g</strong> (grams), <strong>kg</strong> (kilograms)</td>
-                                <td><span class="text-danger">gms, gm, gms., kilo, kgs</span></td>
-                                <td>Rule 13(1)</td>
-                            </tr>
-                            <tr>
-                                <td>Volume (Liquid)</td>
-                                <td><strong>ml</strong> (millilitre), <strong>l</strong> or <strong>L</strong> (litre)</td>
-                                <td><span class="text-danger">ML, ml., ltr, litres, liter</span></td>
-                                <td>Rule 13(2)</td>
-                            </tr>
-                            <tr>
-                                <td>Retail Sale Price</td>
-                                <td><strong>MRP Rs. XX.XX (incl. of all taxes)</strong> or <strong>₹ XX.XX</strong></td>
-                                <td><span class="text-danger">Omitting 'inclusive of all taxes', charging above MRP</span></td>
-                                <td>Rule 6(1)(da) & Section 36(2)</td>
-                            </tr>
-                            <tr>
-                                <td>Consumer Grievance</td>
-                                <td><strong>Both Telephone / Helpline AND Official Email</strong></td>
-                                <td><span class="text-danger">Missing email, helpline without responsive contact</span></td>
-                                <td>Rule 6(1)(e)</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
             </div>
         </section>
 
     </main>
 
+
     <!-- ===================================================================
-         AUDIT REPORT MODAL (OFFICIAL INSPECTION SHEET)
+         MODAL: OFFICIAL REGULATORY INSPECTION AUDIT SHEET
     ==================================================================== -->
-    <div class="modal-overlay hidden" id="report-modal">
-        <div class="modal-dialog">
+    <div id="print-modal" class="modal-overlay hidden">
+        <div class="modal-window">
             <div class="modal-header">
-                <div class="modal-title">
-                    <i class="fa-solid fa-file-shield text-primary"></i>
-                    <span>Legal Metrology Statutory Compliance Certificate</span>
-                </div>
-                <div class="modal-actions-top">
-                    <button class="btn btn-primary btn-sm" onclick="printReport()">
-                        <i class="fa-solid fa-print"></i> Print / Save as PDF
+                <h3><i class="fa-solid fa-file-shield"></i> Official Surveillance Inspection Sheet</h3>
+                <div class="modal-controls">
+                    <button class="btn btn-primary btn-sm" onclick="window.print()">
+                        <i class="fa-solid fa-print"></i> Print / Save PDF
                     </button>
-                    <button class="btn-close-modal" onclick="closeReportModal()">&times;</button>
+                    <button class="btn btn-secondary btn-sm" onclick="exportScanReportJSON()">
+                        <i class="fa-solid fa-download"></i> JSON
+                    </button>
+                    <button class="btn-close-modal" onclick="closePrintModal()" title="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
                 </div>
             </div>
-
-            <div class="modal-body" id="printable-report">
-                <!-- Formal Regulatory Certificate Header -->
-                <div class="report-header">
-                    <div class="gov-seal">
+            
+            <div class="modal-body printable-sheet" id="printable-sheet-content">
+                <!-- Inspection Sheet Header -->
+                <div class="official-sheet-header">
+                    <div class="gov-emblem">
                         <i class="fa-solid fa-landmark"></i>
                     </div>
                     <div class="gov-title">
                         <h3>DEPARTMENT OF CONSUMER AFFAIRS</h3>
-                        <h4>LEGAL METROLOGY DIVISION • GOVERNMENT OF INDIA</h4>
-                        <p>PACKAGED COMMODITY MANDATORY DECLARATION VERIFICATION REPORT</p>
+                        <h4>LEGAL METROLOGY & FOOD INTEGRITY SURVEILLANCE • GOVERNMENT OF INDIA</h4>
+                        <p>PACKAGED COMMODITY MANDATORY DECLARATIONS & COUNTERFEIT RISK AUDIT REPORT</p>
                     </div>
                     <div class="report-qr">
                         <i class="fa-solid fa-qrcode"></i>
@@ -503,22 +516,30 @@
                 <!-- Inspection Meta Data -->
                 <div class="report-meta-grid">
                     <div><strong>Inspection Date:</strong> <span id="rep-date">--</span></div>
-                    <div><strong>Evaluation Engine:</strong> Antigravity PCR-2011 Core</div>
-                    <div><strong>Inspection Standard:</strong> PCR Rules 2011 (Rule 6, 7 & 13)</div>
-                    <div><strong>Surveillance Officer / Auditor ID:</strong> SIH-INSP-2026</div>
+                    <div><strong>Evaluation Engine:</strong> PCR-2011 Core & Counterfeit Risk Engine v2.0</div>
+                    <div><strong>Inspection Standard:</strong> PCR Rules 2011 (Rule 6 & 13) + GS1 EAN-13</div>
+                    <div><strong>Surveillance Officer / ID:</strong> GOI-LM-AUDIT-2026</div>
                 </div>
 
-                <!-- Compliance Status Banner -->
-                <div class="report-verdict-box" id="rep-verdict-box">
-                    <div class="verdict-tag" id="rep-verdict-tag">COMPLIANT</div>
-                    <p id="rep-verdict-desc">Product packaging satisfies statutory declaration requirements.</p>
+                <!-- Dual Outcome Verdict Boxes -->
+                <div class="modal-verdicts-row">
+                    <div class="report-verdict-box" id="rep-verdict-box">
+                        <span class="report-verdict-heading">1. Legal Metrology Verdict:</span>
+                        <div class="verdict-tag" id="rep-verdict-tag">COMPLIANT</div>
+                        <p id="rep-verdict-desc">Product packaging satisfies statutory declaration requirements.</p>
+                    </div>
+                    <div class="report-verdict-box" id="rep-counterfeit-box">
+                        <span class="report-verdict-heading">2. Counterfeit Risk Verdict:</span>
+                        <div class="verdict-tag" id="rep-counterfeit-tag">LOW RISK</div>
+                        <p id="rep-counterfeit-desc">Attributes match genuine brand specifications.</p>
+                    </div>
                 </div>
 
                 <!-- Declared Attributes Table -->
-                <h4 class="report-section-heading">1. Declared Commodity Attributes</h4>
+                <h4 class="report-section-heading mt-3">1. Declared Commodity Attributes & Normalization</h4>
                 <table class="report-table">
                     <tr>
-                        <th width="30%">Generic Product Name</th>
+                        <th width="30%">Generic Commodity Name</th>
                         <td id="rep-name">--</td>
                     </tr>
                     <tr>
@@ -548,7 +569,7 @@
                 </table>
 
                 <!-- Rule Checklist -->
-                <h4 class="report-section-heading mt-3">2. Rule-by-Rule Regulatory Audit</h4>
+                <h4 class="report-section-heading mt-3">2. Rule-by-Rule Statutory Audit (PCR, 2011)</h4>
                 <table class="report-table" id="rep-rules-table">
                     <thead>
                         <tr>
@@ -563,11 +584,26 @@
                     </tbody>
                 </table>
 
+                <!-- Counterfeit Signals Table -->
+                <h4 class="report-section-heading mt-3">3. Food Counterfeit Risk Audit Signals</h4>
+                <table class="report-table" id="rep-counterfeit-table">
+                    <thead>
+                        <tr>
+                            <th>Audit Vector</th>
+                            <th>Finding & Evidence</th>
+                            <th>Risk Contribution</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rep-counterfeit-tbody">
+                        <!-- Populated by script.js -->
+                    </tbody>
+                </table>
+
                 <!-- Legal Caution & Signature -->
                 <div class="report-footer-signatures mt-4">
                     <div class="signature-box">
                         <div class="sig-line"></div>
-                        <span>Automated OCR & NLP Verification Engine</span>
+                        <span>Automated Intelligence Surveillance Engine</span>
                     </div>
                     <div class="signature-box">
                         <div class="sig-stamp">REGULATORY SURVEILLANCE VERIFIED</div>
@@ -577,7 +613,7 @@
                 </div>
 
                 <div class="report-disclaimer">
-                    <strong>Statutory Disclaimer:</strong> This inspection report is generated algorithmically for automated compliance assistance under the Legal Metrology (Packaged Commodities) Rules, 2011. Synthetic demonstration record for Smart India Hackathon.
+                    <strong>Statutory Disclaimer:</strong> This inspection audit is generated algorithmically for automated regulatory surveillance under the Legal Metrology (Packaged Commodities) Rules, 2011 and brand protection guidelines.
                 </div>
             </div>
         </div>

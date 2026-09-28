@@ -9,6 +9,7 @@ from flask import Blueprint, current_app, jsonify, request
 from services.ocr_service import check_tesseract_available
 from services.analysis_orchestrator import AnalysisOrchestrator
 from repositories.product_repository import save_record_to_dataset
+from repositories.database_repository import db_repository
 from utils.file_utils import allowed_file
 
 scan_bp = Blueprint("scan", __name__)
@@ -112,8 +113,28 @@ def scan_product():
         barcode=barcode_input,
     )
 
+    # Save scan audit record into SQLite
+    scan_audit_id = f"SCAN-{uuid.uuid4().hex[:8].upper()}"
+    try:
+        db_repository.save_scan_audit({
+            "scan_id": scan_audit_id,
+            "product_id": analysis.get("unified_report", {}).get("product_identity", {}).get("identified_brand", "Unknown"),
+            "image_url": image_url,
+            "ocr_text": analysis.get("ocr_text", ""),
+            "ocr_confidence": str(analysis.get("ocr_confidence", "N/A")),
+            "compliance_status": analysis.get("compliance", {}).get("overall_status", "NEEDS REVIEW"),
+            "counterfeit_risk": analysis.get("counterfeit_risk", {}).get("risk_level", "LOW"),
+            "risk_score": float(analysis.get("counterfeit_risk", {}).get("risk_score", 0.0)),
+            "quality_grade": analysis.get("image_quality", {}).get("quality_grade", "ACCEPTABLE"),
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "report": analysis.get("unified_report", {})
+        })
+    except Exception as e:
+        current_app.logger.warning(f"Could not persist scan audit: {e}")
+
     return jsonify({
         "success": True,
+        "scan_id": scan_audit_id,
         "image_url": image_url,
         "ocr_text": analysis["ocr_text"],
         "ocr_source": analysis["ocr_source"],
@@ -127,10 +148,22 @@ def scan_product():
     })
 
 
+@scan_bp.route("/api/scans", methods=["GET"])
+def list_scans():
+    """
+    Returns recent scans from SQLite audit database.
+    """
+    limit = int(request.args.get("limit", 50))
+    offset = int(request.args.get("offset", 0))
+    search = request.args.get("search", "").strip() or None
+    scans = db_repository.list_scans(limit=limit, offset=offset, search=search)
+    return jsonify({"scans": scans, "total": len(scans)})
+
+
 @scan_bp.route("/api/save", methods=["POST"])
 def save_product():
     """
-    Appends scanned product to history / CSV dataset
+    Appends scanned product to history / CSV dataset and SQLite database
     """
     data = request.json or {}
     new_id = f"LMC-{int(datetime.now().timestamp() % 100000):05d}"

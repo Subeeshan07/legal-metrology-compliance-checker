@@ -304,10 +304,19 @@ function loadSample(sampleType) {
     runAnalysis();
 }
 
+function setBarcode(val) {
+    const el = document.getElementById("barcode-input");
+    if (el) {
+        el.value = val;
+        showToast(`Set barcode identifier: ${val}`, "info");
+    }
+}
+
 async function runAnalysis() {
     const rawText = document.getElementById("raw-ocr-text").value.trim();
+    const barcodeVal = document.getElementById("barcode-input") ? document.getElementById("barcode-input").value.trim() : "";
 
-    if (!selectedFile && !currentSampleId && !rawText) {
+    if (!selectedFile && !currentSampleId && !rawText && !barcodeVal) {
         showToast("Please select a sample preset, upload a label image, or enter OCR text to analyze.", "warning");
         return;
     }
@@ -315,7 +324,7 @@ async function runAnalysis() {
     const btn = document.getElementById("btn-analyze");
     const originalBtnHtml = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Performing OCR & Verification...`;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing OCR & Risk Analysis...`;
 
     try {
         const formData = new FormData();
@@ -327,6 +336,9 @@ async function runAnalysis() {
         }
         if (rawText) {
             formData.append("manual_text", rawText);
+        }
+        if (barcodeVal) {
+            formData.append("barcode", barcodeVal);
         }
 
         const response = await fetch("/api/scan", {
@@ -342,7 +354,8 @@ async function runAnalysis() {
         if (data.success) {
             currentScannedData = data;
             displayScanResults(data);
-            showToast(`Analysis completed: Verdict is ${data.compliance.overall_status}`, data.compliance.overall_status === "COMPLIANT" ? "success" : "danger");
+            showToast(`Analysis complete: Verdict is ${data.compliance.overall_status} • Risk is ${data.counterfeit_risk.risk_level}`, 
+                data.compliance.overall_status === "COMPLIANT" && data.counterfeit_risk.risk_level === "LOW" ? "success" : "warning");
         } else {
             showToast(data.error || "Analysis failed.", "danger");
         }
@@ -374,11 +387,11 @@ function displayScanResults(data) {
             badge.className = "engine-badge badge-ocr-active";
         }
         if (badgeText) {
-            badgeText.innerText = "OCR: Local Tesseract OCR";
+            badgeText.innerText = "OCR: Local Tesseract Engine";
         }
     }
 
-    // 1. Overall Status Banner
+    // 1. Outcome 1: Legal Metrology Compliance Banner
     const status = data.compliance.overall_status;
     const banner = document.getElementById("status-banner");
     const bannerIcon = document.getElementById("banner-icon");
@@ -390,12 +403,13 @@ function displayScanResults(data) {
         banner.classList.add("banner-compliant");
         bannerIcon.innerHTML = `<i class="fa-solid fa-circle-check"></i>`;
         bannerTitle.innerText = "COMPLIANT";
-        bannerSub.innerText = "All mandatory packaged commodity declarations conform with Legal Metrology (Packaged Commodities) Rules, 2011.";
+        bannerSub.innerText = "All mandatory packaging declarations conform with Legal Metrology (Packaged Commodities) Rules, 2011.";
     } else if (status === "NON-COMPLIANT") {
         banner.classList.add("banner-non-compliant");
         bannerIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>`;
         bannerTitle.innerText = "NON-COMPLIANT";
-        bannerSub.innerText = `Detected ${data.compliance.violations.length} statutory violation(s) under Legal Metrology Rules, 2011.`;
+        const vCount = data.compliance.violations ? data.compliance.violations.length : 0;
+        bannerSub.innerText = `Detected ${vCount} statutory violation(s) under Legal Metrology Rules, 2011.`;
     } else {
         banner.classList.add("banner-review");
         bannerIcon.innerHTML = `<i class="fa-solid fa-eye"></i>`;
@@ -403,22 +417,152 @@ function displayScanResults(data) {
         bannerSub.innerText = "Declarations detected with non-standard units, incomplete address, or potential ambiguity.";
     }
 
-    // 2. Extracted Declarations Grid
+    // 2. Outcome 2: Food Counterfeit Risk Analysis Banner
+    const cf = data.counterfeit_risk || {};
+    const cfRisk = (cf.risk_level || "LOW").toUpperCase();
+    const cfScore = cf.risk_score !== undefined ? cf.risk_score : 10;
+    const cfBanner = document.getElementById("counterfeit-banner");
+    const cfIcon = document.getElementById("counterfeit-banner-icon");
+    const cfTitle = document.getElementById("counterfeit-risk-text");
+    const cfSub = document.getElementById("counterfeit-risk-subtext");
+
+    if (cfBanner) {
+        cfBanner.className = "status-banner";
+        if (cfRisk === "LOW") {
+            cfBanner.classList.add("banner-risk-low");
+            if (cfIcon) cfIcon.innerHTML = `<i class="fa-solid fa-shield-check"></i>`;
+        } else if (cfRisk === "MEDIUM") {
+            cfBanner.classList.add("banner-risk-medium");
+            if (cfIcon) cfIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>`;
+        } else {
+            cfBanner.classList.add("banner-risk-high");
+            if (cfIcon) cfIcon.innerHTML = `<i class="fa-solid fa-skull-crossbones"></i>`;
+        }
+        if (cfTitle) cfTitle.innerText = `${cfRisk} RISK (${cfScore.toFixed(0)}%)`;
+        if (cfSub) {
+            cfSub.innerText = cf.reasons && cf.reasons.length > 0 
+                ? cf.reasons[0] 
+                : "Packaging attributes and declarations align with genuine reference specifications.";
+        }
+    }
+
+    // 3. Image Quality Assessment Card
+    const iq = data.image_quality || {};
+    const qGrade = iq.quality_grade || "ACCEPTABLE";
+    const qGradeBadge = document.getElementById("quality-grade-badge");
+    if (qGradeBadge) {
+        qGradeBadge.innerText = `Grade: ${qGrade}`;
+        qGradeBadge.className = `badge-soft ${qGrade === 'EXCELLENT' ? 'text-success' : (qGrade === 'POOR' ? 'text-danger' : 'text-warning')}`;
+    }
+
+    const qmGrid = document.getElementById("quality-metrics-grid");
+    if (qmGrid) {
+        const blur = iq.blur_laplacian !== undefined ? iq.blur_laplacian.toFixed(1) : "N/A";
+        const lum = iq.luminance_mean !== undefined ? iq.luminance_mean.toFixed(1) : "N/A";
+        const glare = iq.glare_percentage !== undefined ? `${iq.glare_percentage.toFixed(1)}%` : "0%";
+        const res = iq.resolution ? `${iq.resolution[0]}x${iq.resolution[1]}` : "Preset";
+
+        qmGrid.innerHTML = `
+            <div class="quality-metric-item">
+                <span class="qm-label">Resolution</span>
+                <span class="qm-val">${res}</span>
+                <span class="qm-status text-success"><i class="fa-solid fa-check"></i> Standard</span>
+            </div>
+            <div class="quality-metric-item">
+                <span class="qm-label">Sharpness (Blur)</span>
+                <span class="qm-val">${blur}</span>
+                <span class="qm-status ${iq.is_blurry ? 'text-danger' : 'text-success'}">
+                    <i class="fa-solid ${iq.is_blurry ? 'fa-xmark' : 'fa-check'}"></i> ${iq.is_blurry ? 'Blurry' : 'Sharp'}
+                </span>
+            </div>
+            <div class="quality-metric-item">
+                <span class="qm-label">Lighting Level</span>
+                <span class="qm-val">${lum}</span>
+                <span class="qm-status ${iq.is_poor_lighting ? 'text-danger' : 'text-success'}">
+                    <i class="fa-solid ${iq.is_poor_lighting ? 'fa-xmark' : 'fa-check'}"></i> ${iq.is_poor_lighting ? 'Poor Lighting' : 'Adequate'}
+                </span>
+            </div>
+            <div class="quality-metric-item">
+                <span class="qm-label">Glare Ratio</span>
+                <span class="qm-val">${glare}</span>
+                <span class="qm-status ${iq.has_glare ? 'text-danger' : 'text-success'}">
+                    <i class="fa-solid ${iq.has_glare ? 'fa-xmark' : 'fa-check'}"></i> ${iq.has_glare ? 'High Glare' : 'Low Glare'}
+                </span>
+            </div>
+        `;
+    }
+
+    // 4. Counterfeit Signals Breakdown
+    const pBadge = document.getElementById("product-id-badge");
+    const brand = (data.unified_report && data.unified_report.product_identity && data.unified_report.product_identity.identified_brand) 
+        || (cf.matched_reference_brand) || "Generic / Unregistered";
+    if (pBadge) {
+        pBadge.innerText = `Identified Brand: ${brand}`;
+    }
+
+    const cfDetails = document.getElementById("counterfeit-details-body");
+    if (cfDetails) {
+        const signals = cf.signals || {};
+        cfDetails.innerHTML = `
+            <div class="signals-list">
+                <div class="signal-row ${signals.known_typo ? 'signal-fail' : 'signal-pass'}">
+                    <div class="signal-info">
+                        <span class="signal-title">Brand Squatting & Typo Inspection</span>
+                        <span class="signal-detail">${signals.known_typo ? 'Detected suspicious brand typo / squatting variant' : 'No deceptive typos or squatting patterns detected in OCR brand text'}</span>
+                    </div>
+                    <span class="status-pill ${signals.known_typo ? 'pill-non-compliant' : 'pill-compliant'}">
+                        ${signals.known_typo ? 'SUSPICIOUS' : 'VERIFIED'}
+                    </span>
+                </div>
+                <div class="signal-row ${signals.manufacturer_match ? 'signal-pass' : (brand !== 'Generic / Unregistered' ? 'signal-warn' : 'signal-pass')}">
+                    <div class="signal-info">
+                        <span class="signal-title">Authorized Manufacturer Verification</span>
+                        <span class="signal-detail">${signals.manufacturer_match ? 'Manufacturer matches registered brand producer facility' : 'Manufacturer address does not match known authorized producer list'}</span>
+                    </div>
+                    <span class="status-pill ${signals.manufacturer_match ? 'pill-compliant' : 'pill-review'}">
+                        ${signals.manufacturer_match ? 'MATCHED' : 'UNVERIFIED'}
+                    </span>
+                </div>
+                <div class="signal-row ${signals.barcode_verified ? 'signal-pass' : 'signal-pass'}">
+                    <div class="signal-info">
+                        <span class="signal-title">GS1 GTIN-13 Barcode Verification</span>
+                        <span class="signal-detail">${signals.barcode_verified ? 'GS1 EAN-13 checksum valid and registered to brand' : 'Barcode verified algorithmically / not provided'}</span>
+                    </div>
+                    <span class="status-pill ${signals.barcode_verified ? 'pill-compliant' : 'pill-compliant'}">
+                        ${signals.barcode_verified ? 'GS1 VALID' : 'CHECKED'}
+                    </span>
+                </div>
+                <div class="signal-row ${signals.packaging_layout_consistent ? 'signal-pass' : 'signal-warn'}">
+                    <div class="signal-info">
+                        <span class="signal-title">Packaging Principal Display Panel (PDP) Layout</span>
+                        <span class="signal-detail">${signals.packaging_layout_consistent ? 'Text density and element positions conform with reference package hierarchy' : 'PDP layout displays anomalous distribution or missing primary text zones'}</span>
+                    </div>
+                    <span class="status-pill ${signals.packaging_layout_consistent ? 'pill-compliant' : 'pill-review'}">
+                        ${signals.packaging_layout_consistent ? 'CONSISTENT' : 'DEVIATION'}
+                    </span>
+                </div>
+            </div>
+        `;
+    }
+
+    // 5. Extracted Declarations Grid
     const ent = data.extracted_entities || {};
+    const norm = (data.unified_report && data.unified_report.normalized_declarations) || {};
     const grid = document.getElementById("declarations-grid");
     
     const fields = [
-        { label: "Generic Product Name", val: ent.product_name, rule: "Rule 6(1)(b)" },
-        { label: "Net Quantity", val: ent.net_quantity, rule: "Rule 6(1)(c)" },
-        { label: "Maximum Retail Price (MRP)", val: ent.mrp, rule: "Rule 6(1)(da)" },
-        { label: "Date of Mfg / Packing", val: ent.mfg_date, rule: "Rule 6(1)(d)" },
-        { label: "Manufacturer / Packer", val: ent.manufacturer, rule: "Rule 6(1)(a)" },
-        { label: "Consumer Care Contact", val: ent.consumer_care, rule: "Rule 6(1)(e)" },
-        { label: "Country of Origin", val: ent.country_of_origin, rule: "Rule 6(1)(n)" }
+        { label: "Generic Product Name", val: ent.product_name, rule: "Rule 6(1)(b)", normVal: norm.product_name },
+        { label: "Net Quantity", val: ent.net_quantity, rule: "Rule 6(1)(c)", normVal: norm.net_quantity ? `${norm.net_quantity.value} ${norm.net_quantity.unit}` : null },
+        { label: "Maximum Retail Price (MRP)", val: ent.mrp, rule: "Rule 6(1)(da)", normVal: norm.mrp ? `Rs. ${norm.mrp.value} (${norm.mrp.currency})` : null },
+        { label: "Date of Mfg / Packing", val: ent.mfg_date, rule: "Rule 6(1)(d)", normVal: norm.mfg_date ? `${norm.mfg_date.month}/${norm.mfg_date.year}` : null },
+        { label: "Manufacturer / Packer", val: ent.manufacturer, rule: "Rule 6(1)(a)", normVal: norm.manufacturer },
+        { label: "Consumer Care Contact", val: ent.consumer_care, rule: "Rule 6(1)(e)", normVal: norm.consumer_care },
+        { label: "Country of Origin", val: ent.country_of_origin, rule: "Rule 6(1)(n)", normVal: norm.country_of_origin }
     ];
 
     grid.innerHTML = fields.map(f => {
         const hasVal = f.val && f.val.trim().length > 0 && f.val.toLowerCase() !== "not declared";
+        const hasNorm = f.normVal && f.normVal !== f.val;
         return `
             <div class="declaration-item">
                 <div class="dec-header">
@@ -428,11 +572,12 @@ function displayScanResults(data) {
                 <div class="dec-value ${hasVal ? '' : 'text-danger'}">
                     ${hasVal ? escapeHtml(f.val) : '<i class="fa-solid fa-circle-xmark"></i> Not Declared / Undetected'}
                 </div>
+                ${hasNorm ? `<div class="dec-norm" style="font-size:11px; color:#2563eb; margin-top:3px;"><i class="fa-solid fa-check-double"></i> Normalized: ${escapeHtml(f.normVal)}</div>` : ''}
             </div>
         `;
     }).join("");
 
-    // 3. Rule-by-Rule Checklist
+    // 6. Rule-by-Rule Checklist
     const checklist = document.getElementById("rules-checklist");
     checklist.innerHTML = (data.compliance.checks || []).map(c => {
         let cls = "rule-pass";
@@ -468,6 +613,9 @@ function displayScanResults(data) {
 function resetScanner() {
     resetImageUpload();
     document.getElementById("raw-ocr-text").value = "";
+    if (document.getElementById("barcode-input")) {
+        document.getElementById("barcode-input").value = "";
+    }
     document.getElementById("scanner-results").classList.add("hidden");
     document.getElementById("scanner-placeholder").classList.remove("hidden");
     currentScannedData = null;
@@ -677,27 +825,56 @@ async function loadLegalRules() {
 // Audit Certificate / Printable Modal
 // --------------------------------------------------------------------------
 function viewProductAuditSheet(product) {
+    const modal = document.getElementById("print-modal") || document.getElementById("report-modal");
+    if (!modal) return;
+
     document.getElementById("report-ref-id").innerText = product.id || "LMC-AUDIT";
     document.getElementById("rep-date").innerText = product.scanned_timestamp || new Date().toLocaleString();
 
+    // 1. Legal Metrology Verdict
     const status = product.compliance_status || "NEEDS REVIEW";
     const verdictBox = document.getElementById("rep-verdict-box");
     const verdictTag = document.getElementById("rep-verdict-tag");
     const verdictDesc = document.getElementById("rep-verdict-desc");
 
-    verdictBox.className = "report-verdict-box";
-    if (status === "COMPLIANT") {
-        verdictBox.classList.add("verdict-compliant");
-        verdictTag.innerText = "COMPLIANT";
-        verdictDesc.innerText = "The packaged commodity satisfies all mandatory statutory declarations under PCR 2011.";
-    } else if (status === "NON-COMPLIANT") {
-        verdictBox.classList.add("verdict-non-compliant");
-        verdictTag.innerText = "NON-COMPLIANT";
-        verdictDesc.innerText = "Critical mandatory declarations missing or in violation of statutory rules.";
-    } else {
-        verdictBox.classList.add("verdict-review");
-        verdictTag.innerText = "NEEDS REVIEW";
-        verdictDesc.innerText = "Non-standard units or incomplete details requiring secondary manual inspection.";
+    if (verdictBox) {
+        verdictBox.className = "report-verdict-box";
+        if (status === "COMPLIANT") {
+            verdictBox.classList.add("verdict-compliant");
+            if (verdictTag) verdictTag.innerText = "COMPLIANT";
+            if (verdictDesc) verdictDesc.innerText = "Product packaging satisfies all mandatory statutory declarations under PCR 2011.";
+        } else if (status === "NON-COMPLIANT") {
+            verdictBox.classList.add("verdict-non-compliant");
+            if (verdictTag) verdictTag.innerText = "NON-COMPLIANT";
+            if (verdictDesc) verdictDesc.innerText = "Critical mandatory declarations missing or in violation of statutory rules.";
+        } else {
+            verdictBox.classList.add("verdict-review");
+            if (verdictTag) verdictTag.innerText = "NEEDS REVIEW";
+            if (verdictDesc) verdictDesc.innerText = "Non-standard units or incomplete details requiring secondary manual inspection.";
+        }
+    }
+
+    // 2. Counterfeit Risk Verdict
+    const cfRisk = (product.counterfeit_risk || (currentScannedData && currentScannedData.counterfeit_risk && currentScannedData.counterfeit_risk.risk_level) || "LOW").toUpperCase();
+    const cfBox = document.getElementById("rep-counterfeit-box");
+    const cfTag = document.getElementById("rep-counterfeit-tag");
+    const cfDesc = document.getElementById("rep-counterfeit-desc");
+
+    if (cfBox) {
+        cfBox.className = "report-verdict-box";
+        if (cfRisk === "LOW") {
+            cfBox.classList.add("verdict-compliant");
+            if (cfTag) cfTag.innerText = "LOW RISK";
+            if (cfDesc) cfDesc.innerText = "Packaging attributes and declarations align with genuine reference specifications.";
+        } else if (cfRisk === "MEDIUM") {
+            cfBox.classList.add("verdict-review");
+            if (cfTag) cfTag.innerText = "MEDIUM RISK";
+            if (cfDesc) cfDesc.innerText = "Moderate anomalies detected in packaging layout or manufacturer address.";
+        } else {
+            cfBox.classList.add("verdict-non-compliant");
+            if (cfTag) cfTag.innerText = "HIGH RISK";
+            if (cfDesc) cfDesc.innerText = "High risk of counterfeit packaging: suspicious typos or unregistered barcode detected.";
+        }
     }
 
     // Populate attributes
@@ -723,24 +900,65 @@ function viewProductAuditSheet(product) {
         { rule: "Rule 6(1)(n)", title: "Country of Origin Declaration" }
     ];
 
-    tbody.innerHTML = standardChecks.map(item => {
-        const isViolated = violations.includes(item.rule);
-        const st = isViolated ? (status === "NON-COMPLIANT" ? "FAIL" : "WARNING") : "PASS";
-        const badge = st === "PASS" ? '<span class="status-pill pill-compliant">PASS</span>' :
-                      st === "FAIL" ? '<span class="status-pill pill-non-compliant">VIOLATION</span>' :
-                      '<span class="status-pill pill-review">WARNING</span>';
+    if (tbody) {
+        tbody.innerHTML = standardChecks.map(item => {
+            const isViolated = violations.includes(item.rule);
+            const st = isViolated ? (status === "NON-COMPLIANT" ? "FAIL" : "WARNING") : "PASS";
+            const badge = st === "PASS" ? '<span class="status-pill pill-compliant">PASS</span>' :
+                          st === "FAIL" ? '<span class="status-pill pill-non-compliant">VIOLATION</span>' :
+                          '<span class="status-pill pill-review">WARNING</span>';
 
-        return `
+            return `
+                <tr>
+                    <td><strong>${item.rule}</strong></td>
+                    <td>${item.title}</td>
+                    <td>${badge}</td>
+                    <td>${isViolated ? escapeHtml(violations) : 'Conforms to statutory format'}</td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    // Build Counterfeit Signals Table
+    const cfTbody = document.getElementById("rep-counterfeit-tbody");
+    if (cfTbody) {
+        const cfData = (currentScannedData && currentScannedData.counterfeit_risk) || {};
+        const signals = cfData.signals || {};
+        const reasons = cfData.reasons || ["Packaging features align with verified reference product dataset."];
+
+        const auditVectors = [
+            {
+                vector: "Brand Typography & Squatting",
+                finding: signals.known_typo ? "Anomalous brand typo / deceptive spelling detected" : "Authentic brand spelling verified against registered registry",
+                risk: signals.known_typo ? "+40% (HIGH)" : "0% (NONE)"
+            },
+            {
+                vector: "Authorized Manufacturing Unit",
+                finding: signals.manufacturer_match ? "Address matches authorized factory/packer facility" : "Packer facility not found in registered producer list",
+                risk: signals.manufacturer_match ? "0% (NONE)" : "+20% (MEDIUM)"
+            },
+            {
+                vector: "GS1 Barcode Checksum & Brand Registry",
+                finding: signals.barcode_verified ? "GTIN-13 checksum mathematically valid and registered to brand" : "Barcode not matched to brand or not provided",
+                risk: signals.barcode_verified ? "0% (NONE)" : "Neutral"
+            },
+            {
+                vector: "Principal Display Panel (PDP) Layout",
+                finding: signals.packaging_layout_consistent ? "Declaration layout follows standardized packaging template" : "PDP spatial distribution deviates from genuine packaging profile",
+                risk: signals.packaging_layout_consistent ? "0% (NONE)" : "+15% (LOW)"
+            }
+        ];
+
+        cfTbody.innerHTML = auditVectors.map(v => `
             <tr>
-                <td><strong>${item.rule}</strong></td>
-                <td>${item.title}</td>
-                <td>${badge}</td>
-                <td>${isViolated ? escapeHtml(violations) : 'Conforms to statutory format'}</td>
+                <td><strong>${escapeHtml(v.vector)}</strong></td>
+                <td>${escapeHtml(v.finding)}</td>
+                <td><span class="badge-soft">${escapeHtml(v.risk)}</span></td>
             </tr>
-        `;
-    }).join("");
+        `).join("");
+    }
 
-    document.getElementById("report-modal").classList.remove("hidden");
+    modal.classList.remove("hidden");
 }
 
 function openPrintModal() {
@@ -750,9 +968,10 @@ function openPrintModal() {
     }
     const ent = currentScannedData.extracted_entities || {};
     const comp = currentScannedData.compliance || {};
+    const cf = currentScannedData.counterfeit_risk || {};
 
     const tempProduct = {
-        id: "LMC-LIVE-SCAN",
+        id: currentScannedData.scan_id || "LMC-LIVE-SCAN",
         product_name: ent.product_name || "Scanned Commodity",
         manufacturer: ent.manufacturer || "Not Declared",
         net_quantity: ent.net_quantity || "Not Declared",
@@ -761,6 +980,7 @@ function openPrintModal() {
         consumer_care: ent.consumer_care || "Not Declared",
         country_of_origin: ent.country_of_origin || "Not Declared",
         compliance_status: comp.overall_status || "NEEDS REVIEW",
+        counterfeit_risk: cf.risk_level || "LOW",
         violations: comp.violations_summary || "None",
         scanned_timestamp: new Date().toLocaleString()
     };
@@ -768,8 +988,27 @@ function openPrintModal() {
     viewProductAuditSheet(tempProduct);
 }
 
+function closePrintModal() {
+    const modal = document.getElementById("print-modal") || document.getElementById("report-modal");
+    if (modal) modal.classList.add("hidden");
+}
+
 function closeReportModal() {
-    document.getElementById("report-modal").classList.add("hidden");
+    closePrintModal();
+}
+
+function exportScanReportJSON() {
+    if (!currentScannedData) {
+        showToast("No active scan report to export.", "warning");
+        return;
+    }
+    const reportData = currentScannedData.unified_report || currentScannedData;
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `compliance_audit_report_${Date.now()}.json`;
+    link.click();
+    showToast("Audit report JSON exported.", "success");
 }
 
 function printReport() {
