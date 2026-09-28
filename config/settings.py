@@ -101,6 +101,12 @@ class Config:
         "legal_metrology_dataset.csv",
     )
 
+    DATABASE_PATH = resolve_path(
+        os.getenv("DATABASE_PATH"),
+        os.path.join("data", "food_compliance.db"),
+    )
+
+
     MAX_CONTENT_LENGTH_MB = _get_int_env(
         "MAX_CONTENT_LENGTH_MB",
         16,
