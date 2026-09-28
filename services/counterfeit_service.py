@@ -158,6 +158,7 @@ class FoodCounterfeitRiskEngine:
 
         return {
             "risk_tier": str(risk_tier),
+            "risk_level": str(risk_tier),
             "risk_score": round(total_risk, 1),
             "identified_product": {
                 "matched": identification["matched"],
